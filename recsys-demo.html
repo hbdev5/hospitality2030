@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RecsYS — AI Hotel Concierge Demo</title>
+<style>
+  :root {
+    --gold:   #c9a96e;
+    --gold2:  #e8c98a;
+    --dark:   #080f0c;
+    --panel:  #0d1a14;
+    --card:   #111f18;
+    --border: #1e3028;
+    --text:   #d4cfc8;
+    --muted:  #6b7d74;
+    --green:  #3ecf8e;
+    --blue:   #4fa3d4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--dark);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HERO ──────────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    padding: 80px 24px 60px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, #1a3528 0%, transparent 70%);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border: 1px solid var(--gold);
+    border-radius: 20px;
+    color: var(--gold);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 span { color: var(--gold); }
+
+  .hero p.sub {
+    max-width: 560px;
+    margin: 0 auto 40px;
+    font-size: 1.05rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* call / text buttons */
+  .cta-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+
+  .cta-call {
+    background: var(--gold);
+    color: #0a0f0c;
+  }
+  .cta-sms {
+    background: transparent;
+    border: 1.5px solid var(--gold);
+    color: var(--gold);
+  }
+
+  .phone-note {
+    color: var(--muted);
+    font-size: .85rem;
+    letter-spacing: .5px;
+  }
+
+  /* ── SECTION WRAPPER ───────────────────────────────────────────── */
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 72px 24px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 14px;
+    letter-spacing: -.5px;
+  }
+
+  .section-desc {
+    color: var(--muted);
+    font-size: .95rem;
+    line-height: 1.7;
+    max-width: 560px;
+    margin-bottom: 52px;
+  }
+
+  /* ── ARCHITECTURE ──────────────────────────────────────────────── */
+  .arch-section { border-top: 1px solid var(--border); }
+
+  .arch-grid {
+    display: grid;
+    grid-template-columns: 1fr 48px 1fr 48px 1fr;
+    align-items: center;
+    gap: 0;
+  }
+
+  @media (max-width: 700px) {
+    .arch-grid {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .arch-arrow { transform: rotate(90deg); }
+  }
+
+  .arch-node {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 20px;
+    text-align: center;
+    position: relative;
+  }
+
+  .arch-node.master {
+    border-color: var(--gold);
+    background: #121a11;
+  }
+
+  .arch-node .icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .arch-node h3 {
+    font-size: .95rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .arch-node p {
+    font-size: .78rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .arch-node .tag {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .7rem;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+
+  .tag-gold  { background: rgba(201,169,110,.15); color: var(--gold); }
+  .tag-green { background: rgba(62,207,142,.12);  color: var(--green); }
+  .tag-blue  { background: rgba(79,163,212,.12);  color: var(--blue); }
+
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold);
+    font-size: 1.4rem;
+  }
+
+  /* sub-agents stack */
+  .sub-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── CONVERSATION ─────────────────────────────────────────────── */
+  .conv-section { border-top: 1px solid var(--border); }
+
+  .conv-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 760px) {
+    .conv-container { grid-template-columns: 1fr; }
+  }
+
+  /* channel label */
+  .channel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .channel-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .dot-call { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot-sms  { background: var(--blue);  box-shadow: 0 0 8px var(--blue); }
+
+  .channel-label {
+    font-size: .78rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* phone frame */
+  .phone-frame {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .phone-bar {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #0e1a14;
+  }
+
+  .phone-bar .dots span {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+
+  .phone-bar .dots span:nth-child(1) { background: #ff5f57; }
+  .phone-bar .dots span:nth-child(2) { background: #febc2e; }
+  .phone-bar .dots span:nth-child(3) { background: #28c840; }
+
+  .phone-bar .bar-title {
+    font-size: .78rem;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .phone-body { padding: 20px 18px 24px; }
+
+  /* chat bubbles */
+  .bubble-row {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .bubble {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    animation: fadeUp .4s ease both;
+  }
+
+  .bubble.agent { flex-direction: row; }
+  .bubble.guest { flex-direction: row-reverse; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .85rem;
+  }
+
+  .av-agent { background: rgba(201,169,110,.2); color: var(--gold); border: 1px solid rgba(201,169,110,.3); }
+  .av-guest { background: rgba(62,207,142,.15); color: var(--green); border: 1px solid rgba(62,207,142,.25); }
+
+  .bubble-text {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: .82rem;
+    line-height: 1.55;
+  }
+
+  .bubble.agent .bubble-text {
+    background: #162419;
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+
+  .bubble.guest .bubble-text {
+    background: #1a2f1e;
+    border: 1px solid rgba(62,207,142,.2);
+    border-bottom-right-radius: 4px;
+    color: #e0f0e8;
+  }
+
+  .bubble-meta {
+    font-size: .68rem;
+    color: var(--muted);
+    margin-top: 3px;
+    padding: 0 4px;
+  }
+
+  .bubble.guest .bubble-meta { text-align: right; }
+
+  /* agent sub-label */
+  .sub-label {
+    font-size: .65rem;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+
+  .sl-master  { background: rgba(201,169,110,.15); color: var(--gold); }
+  .sl-dinner  { background: rgba(79,163,212,.12);  color: var(--blue); }
+  .sl-golf    { background: rgba(62,207,142,.12);  color: var(--green); }
+
+  /* latency badge */
+  .latency {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: .65rem;
+    color: var(--green);
+    margin-top: 4px;
+  }
+
+  .latency-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  /* ── STACK SECTION ─────────────────────────────────────────────── */
+  .stack-section { border-top: 1px solid var(--border); }
+
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .stack-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 18px;
+    transition: border-color .2s;
+  }
+
+  .stack-card:hover { border-color: rgba(201,169,110,.4); }
+
+  .stack-card .sc-icon {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .stack-card h4 {
+    font-size: .88rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .stack-card p {
+    font-size: .75rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── FOOTER ────────────────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: .8rem;
+  }
+
+  footer a { color: var(--gold); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── DIVIDER LINE ──────────────────────────────────────────────── */
+  .gold-line {
+    width: 48px; height: 2px;
+    background: var(--gold);
+    margin-bottom: 20px;
+  }
+
+  /* ── FLOW DIAGRAM ──────────────────────────────────────────────── */
+  .flow-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 48px;
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .flow-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: .78rem;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .flow-box.highlight {
+    border-color: var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .flow-arr {
+    padding: 0 10px;
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  .flow-branch {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 20px;
+    margin-left: 32px;
+  }
+
+  .flow-branch-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-branch-line {
+    width: 24px;
+    height: 1px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .sb-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: .75rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sb-box .sb-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HERO -->
+<section class="hero">
+  <div class="badge">Live Demo · Rosewood Hotels AI Concierge</div>
+  <h1>One call.<br /><span>The whole restaurant listens.</span></h1>
+  <p class="sub">
+    A Master Agent answers every call and text. Sub-agents book your dinner table,
+    reserve your golf tee time, and confirm room service — all in a single natural conversation.
+  </p>
+  <div class="cta-row">
+    <a class="cta-btn cta-call" href="tel:+16464408480">
+      📞 &nbsp;Call to Try It
+    </a>
+    <a class="cta-btn cta-sms" href="sms:+16464408480?&body=I%27m%20checking%20in%20at%205pm">
+      💬 &nbsp;Text to Try It
+    </a>
+  </div>
+  <div class="phone-note">+1 (646) 440-8480 &nbsp;·&nbsp; Live 24 / 7</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════ ARCHITECTURE -->
+<div class="section arch-section">
+  <div class="section-label">How It Works</div>
+  <h2 class="section-title">Master Agent + Sub-Agents</h2>
+  <p class="section-desc">
+    Every inbound call or SMS hits the Master Agent first. It understands intent in real time
+    and hands off to the right specialist — no menus, no hold music, no dead ends.
+  </p>
+
+  <!-- flow diagram -->
+  <div class="flow-wrap">
+    <div class="flow-row">
+      <div class="flow-box">📞 Guest calls / texts</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">Plivo (telephony)</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">Deepgram Nova-2 (STT)</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box highlight">🧠 Master Agent</div>
+    </div>
+
+    <div class="flow-branch">
+      <div class="flow-branch-row">
+        <div class="flow-branch-line"></div>
+        <div class="sb-box">
+          <span class="sb-dot" style="background:var(--blue)"></span>
+          🍽️ &nbsp;<strong style="color:#fff">Dinner Sub-Agent</strong>&nbsp;
+          <span style="color:var(--muted)">— reserves table, picks restaurant, picks time</span>
+        </div>
+      </div>
+      <div class="flow-branch-row">
+        <div class="flow-branch-line"></div>
+        <div class="sb-box">
+          <span class="sb-dot" style="background:var(--green)"></span>
+          ⛳ &nbsp;<strong style="color:#fff">Golf Sub-Agent</strong>&nbsp;
+          <span style="color:var(--muted)">— books tee time, adds breakfast box</span>
+        </div>
+      </div>
+      <div class="flow-branch-row">
+        <div class="flow-branch-line"></div>
+        <div class="sb-box">
+          <span class="sb-dot" style="background:#b57bee"></span>
+          🧖 &nbsp;<strong style="color:#fff">Spa / Sauna Sub-Agent</strong>&nbsp;
+          <span style="color:var(--muted)">— schedules session, offers add-ons</span>
+        </div>
+      </div>
+      <div class="flow-branch-row">
+        <div class="flow-branch-line"></div>
+        <div class="sb-box">
+          <span class="sb-dot" style="background:var(--gold)"></span>
+          🛎️ &nbsp;<strong style="color:#fff">Room Service Sub-Agent</strong>&nbsp;
+          <span style="color:var(--muted)">— Claude AI picks best item from menu, ~1.5s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-row" style="margin-top:20px">
+      <div class="flow-box highlight" style="border-color:var(--green); color:var(--green)">Master Agent</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">ElevenLabs TTS</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">ffmpeg (MP3 → mulaw 8kHz)</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">Plivo (voice stream)</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">📞 Guest hears response</div>
+    </div>
+  </div>
+
+  <!-- three-column arch -->
+  <div class="arch-grid">
+    <!-- Guest -->
+    <div class="arch-node">
+      <span class="icon">🧳</span>
+      <h3>Guest</h3>
+      <p>Calls or texts the hotel number from any device, any time.</p>
+      <span class="tag tag-green">+1 (646) 440-8480</span>
+    </div>
+
+    <div class="arch-arrow">→</div>
+
+    <!-- Master Agent -->
+    <div class="arch-node master">
+      <span class="icon">🧠</span>
+      <h3>Master Agent</h3>
+      <p>Hears the guest, classifies intent in &lt;50ms, dispatches to the right sub-agent or Claude AI.</p>
+      <span class="tag tag-gold">Deepgram · Claude · Plivo</span>
+    </div>
+
+    <div class="arch-arrow">→</div>
+
+    <!-- Sub-agents -->
+    <div class="sub-stack">
+      <div class="arch-node" style="padding:16px 18px">
+        <h3>🍽️ Dinner Sub-Agent</h3>
+        <p style="font-size:.75rem">Bemelmans Bar or Dowling's at the Carlyle — instant reservation</p>
+        <span class="tag tag-blue">0ms · static intent</span>
+      </div>
+      <div class="arch-node" style="padding:16px 18px">
+        <h3>⛳ Golf Sub-Agent</h3>
+        <p style="font-size:.75rem">5:30 PM tee time or dawn round with breakfast box at hole 1</p>
+        <span class="tag tag-green">0ms · static intent</span>
+      </div>
+      <div class="arch-node" style="padding:16px 18px">
+        <h3>🛎️ Room Service AI</h3>
+        <p style="font-size:.75rem">Claude Haiku reads the live menu and gives a personalised pick</p>
+        <span class="tag tag-gold">~1.5s · Claude AI</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ CONVERSATION -->
+<div class="section conv-section">
+  <div class="section-label">Sample Conversation</div>
+  <h2 class="section-title">One conversation. Three agents. Zero hold music.</h2>
+  <p class="section-desc">
+    The guest speaks naturally. The Master Agent silently routes to sub-agents mid-conversation,
+    then stitches the responses together — the guest just hears a single, seamless concierge.
+  </p>
+
+  <div class="conv-container">
+
+    <!-- ── VOICE CALL ── -->
+    <div>
+      <div class="channel-header">
+        <span class="channel-dot dot-call"></span>
+        <span class="channel-label">Voice Call</span>
+      </div>
+      <div class="phone-frame">
+        <div class="phone-bar">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="bar-title">+1 (646) 440-8480 &nbsp;·&nbsp; Rosewood Hotels</div>
+        </div>
+        <div class="phone-body">
+          <div class="bubble-row">
+
+            <!-- Greeting -->
+            <div class="bubble agent" style="animation-delay:.1s">
+              <div class="avatar av-agent">🏨</div>
+              <div>
+                <div class="sub-label sl-master">Master Agent</div>
+                <div class="bubble-text">Welcome to Rosewood Hotels. What can I arrange for you today?</div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>TTS ready in 1.1s</div>
+              </div>
+            </div>
+
+            <!-- Guest: checking in -->
+            <div class="bubble guest" style="animation-delay:.3s">
+              <div class="avatar av-guest">🧳</div>
+              <div>
+                <div class="bubble-text">Hi, I'm checking in at five. I'd love dinner tonight and maybe golf first thing tomorrow morning.</div>
+                <div class="bubble-meta">Guest · voice</div>
+              </div>
+            </div>
+
+            <!-- Dinner sub-agent fires -->
+            <div class="bubble agent" style="animation-delay:.5s">
+              <div class="avatar av-agent">🍽️</div>
+              <div>
+                <div class="sub-label sl-dinner">Dinner Sub-Agent</div>
+                <div class="bubble-text">Wonderful! I've reserved a table for two at Dowling's at the Carlyle for 7 PM — seasonal New York cuisine in a stunning setting. Shall I add a bottle of Barolo?</div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>0ms · static intent</div>
+              </div>
+            </div>
+
+            <!-- Guest: yes and golf -->
+            <div class="bubble guest" style="animation-delay:.7s">
+              <div class="avatar av-guest">🧳</div>
+              <div>
+                <div class="bubble-text">Yes please, and an early tee time — around seven AM.</div>
+                <div class="bubble-meta">Guest · voice</div>
+              </div>
+            </div>
+
+            <!-- Golf sub-agent fires -->
+            <div class="bubble agent" style="animation-delay:.9s">
+              <div class="avatar av-agent">⛳</div>
+              <div>
+                <div class="sub-label sl-golf">Golf Sub-Agent</div>
+                <div class="bubble-text">Excellent! I've booked a 7:20 AM tee time for tomorrow. A breakfast box will be waiting at hole 1. Sleep well!</div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>0ms · static intent</div>
+              </div>
+            </div>
+
+            <!-- Master wraps up -->
+            <div class="bubble agent" style="animation-delay:1.1s">
+              <div class="avatar av-agent">🏨</div>
+              <div>
+                <div class="sub-label sl-master">Master Agent</div>
+                <div class="bubble-text">You're all set — dinner at 7 PM, golf at 7:20 AM. Anything else I can arrange before your arrival?</div>
+              </div>
+            </div>
+
+            <!-- Guest closes -->
+            <div class="bubble guest" style="animation-delay:1.3s">
+              <div class="avatar av-guest">🧳</div>
+              <div>
+                <div class="bubble-text">That's perfect, thank you!</div>
+                <div class="bubble-meta">Guest · voice</div>
+              </div>
+            </div>
+
+            <!-- Farewell -->
+            <div class="bubble agent" style="animation-delay:1.5s">
+              <div class="avatar av-agent">🏨</div>
+              <div>
+                <div class="sub-label sl-master">Master Agent</div>
+                <div class="bubble-text">Thank you for choosing Rosewood Hotels. Have a wonderful stay!</div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>closing intent · 0ms</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SMS ── -->
+    <div>
+      <div class="channel-header">
+        <span class="channel-dot dot-sms"></span>
+        <span class="channel-label">SMS Text</span>
+      </div>
+      <div class="phone-frame">
+        <div class="phone-bar">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="bar-title">+1 (646) 440-8480 &nbsp;·&nbsp; Messages</div>
+        </div>
+        <div class="phone-body">
+          <div class="bubble-row">
+
+            <!-- Guest texts check-in -->
+            <div class="bubble guest" style="animation-delay:.2s">
+              <div class="avatar av-guest">🧳</div>
+              <div>
+                <div class="bubble-text">Hey, checking in at 5pm tonight. Any dinner recommendations?</div>
+                <div class="bubble-meta">Guest · SMS</div>
+              </div>
+            </div>
+
+            <!-- Master / dinner reply -->
+            <div class="bubble agent" style="animation-delay:.4s">
+              <div class="avatar av-agent">🍽️</div>
+              <div>
+                <div class="sub-label sl-dinner">Dinner Sub-Agent</div>
+                <div class="bubble-text">
+                  Welcome! How special — I'll reserve the window table at Dowling's at the Carlyle for this evening. Shall I arrange a bottle of Barolo to make it truly memorable?
+                  <br /><br />
+                  🏨 Explore all amenities: <a href="https://support.hostbuddy.io/recsys/offers" target="_blank" style="color:var(--gold)">support.hostbuddy.io/recsys/offers</a>
+                </div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>replied in 210ms</div>
+              </div>
+            </div>
+
+            <!-- Guest: coffee -->
+            <div class="bubble guest" style="animation-delay:.6s">
+              <div class="avatar av-guest">🧳</div>
+              <div>
+                <div class="bubble-text">Also can I get a cold brew sent up?</div>
+                <div class="bubble-meta">Guest · SMS</div>
+              </div>
+            </div>
+
+            <!-- Claude room service -->
+            <div class="bubble agent" style="animation-delay:.8s">
+              <div class="avatar av-agent">🛎️</div>
+              <div>
+                <div class="sub-label sl-master">Room Service AI (Claude)</div>
+                <div class="bubble-text">Great choice! Our Cold Brew is absolutely delicious at just $4.45 — smooth, low-acid, and ready within 20 minutes. Anything else?</div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>Claude Haiku · 1.43s</div>
+              </div>
+            </div>
+
+            <!-- Guest: golf -->
+            <div class="bubble guest" style="animation-delay:1.0s">
+              <div class="avatar av-guest">🧳</div>
+              <div>
+                <div class="bubble-text">Book me an early golf slot tomorrow</div>
+                <div class="bubble-meta">Guest · SMS</div>
+              </div>
+            </div>
+
+            <!-- Golf sub-agent -->
+            <div class="bubble agent" style="animation-delay:1.2s">
+              <div class="avatar av-agent">⛳</div>
+              <div>
+                <div class="sub-label sl-golf">Golf Sub-Agent</div>
+                <div class="bubble-text">Excellent! I've booked a 7:20 AM tee time for tomorrow morning. A breakfast box will be waiting for you at hole 1. Sleep well!</div>
+                <div class="bubble-meta latency"><span class="latency-dot"></span>0ms · static intent</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ TECH STACK -->
+<div class="section stack-section">
+  <div class="section-label">Technology</div>
+  <h2 class="section-title">Built on best-in-class APIs</h2>
+  <p class="section-desc">
+    Every component was chosen for latency. The full voice round-trip — from guest utterance to
+    spoken reply — completes in under 3 seconds.
+  </p>
+
+  <div class="stack-grid">
+    <div class="stack-card">
+      <span class="sc-icon">📞</span>
+      <h4>Plivo</h4>
+      <p>Bidirectional audio stream over WebSocket. Mulaw 8kHz, real-time barge-in support.</p>
+    </div>
+    <div class="stack-card">
+      <span class="sc-icon">🎙️</span>
+      <h4>Deepgram Nova-2</h4>
+      <p>Streaming speech-to-text. Interim results enable barge-in; 600ms silence endpointing.</p>
+    </div>
+    <div class="stack-card">
+      <span class="sc-icon">🧠</span>
+      <h4>Claude Haiku (Anthropic)</h4>
+      <p>Handles open-ended room service questions. ~1.5s latency, responses cached by hash.</p>
+    </div>
+    <div class="stack-card">
+      <span class="sc-icon">🔊</span>
+      <h4>ElevenLabs Turbo v2</h4>
+      <p>Luxury hotel voice. MP3 → mulaw via ffmpeg subprocess. 640-byte chunks paced at 75ms.</p>
+    </div>
+    <div class="stack-card">
+      <span class="sc-icon">⚡</span>
+      <h4>FastAPI + asyncio</h4>
+      <p>Single async event loop handles WebSocket, Deepgram reader, and TTS task concurrently.</p>
+    </div>
+    <div class="stack-card">
+      <span class="sc-icon">🗄️</span>
+      <h4>MySQL + SQLAlchemy</h4>
+      <p>Stores call logs, menu text, and restaurant config. Every conversation is auditable.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ FOOTER -->
+<footer>
+  <p style="margin-bottom:10px">
+    <strong style="color:var(--gold)">RecsYS</strong> &nbsp;·&nbsp;
+    Open source AI concierge for hospitality
+  </p>
+  <p>
+    Try it live: &nbsp;
+    <a href="tel:+16464408480">+1 (646) 440-8480</a>
+    &nbsp;·&nbsp;
+    <a href="sms:+16464408480?&body=I%27m%20checking%20in%20at%205pm">Send a text</a>
+    &nbsp;·&nbsp;
+    <a href="https://support.hostbuddy.io/recsys/offers" target="_blank">Amenities page</a>
+  </p>
+  <p style="margin-top:16px; color:#3a4a42">
+    Built with Plivo · Deepgram · Anthropic Claude · ElevenLabs · FastAPI
+  </p>
+</footer>
+
+</body>
+</html>

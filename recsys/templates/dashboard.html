@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% set page = 'dashboard' %}
+{% block content %}
+<div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div>
+      <h1 style="font-size:22px;font-weight:700">Dashboard</h1>
+      <div style="font-size:13px;color:#888;margin-top:2px">Live call metrics &amp; recommendations</div>
+    </div>
+    <span id="liveTag" style="display:inline-flex;align-items:center;gap:6px;background:#e6f4ea;color:#1e7e34;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600">
+      <span style="width:7px;height:7px;border-radius:50%;background:#1e7e34;display:inline-block"></span> Live
+    </span>
+  </div>
+
+  <div class="stat-grid" id="stats">
+    <div class="stat"><div class="val" id="s-today">—</div><div class="lbl">Calls Today</div></div>
+    <div class="stat"><div class="val" id="s-latency">—</div><div class="lbl">Avg Latency</div><div class="sub" id="s-claude"></div></div>
+    <div class="stat"><div class="val" id="s-success">—</div><div class="lbl">Success Rate</div></div>
+    <div class="stat"><div class="val" id="s-noise">—</div><div class="lbl">Noise Flags</div></div>
+    <div class="stat"><div class="val" id="s-voice">—</div><div class="lbl">Voice Calls</div></div>
+    <div class="stat"><div class="val" id="s-sms">—</div><div class="lbl">SMS</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Recent Calls (last 20)</h2>
+    <table>
+      <thead><tr><th>Time</th><th>Type</th><th>Caller</th><th>Query</th><th>Recommendation</th><th>Total ms</th><th>Claude ms</th><th>Status</th></tr></thead>
+      <tbody id="callTable"><tr><td colspan="8" style="text-align:center;color:#bbb;padding:24px">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const BASE = '{{ base }}';
+function load() {
+  fetch(BASE + '/api/metrics').then(r=>r.json()).then(d=>{
+    document.getElementById('s-today').textContent   = d.today_calls;
+    document.getElementById('s-latency').textContent = d.avg_total_latency_ms + 'ms';
+    document.getElementById('s-claude').textContent  = 'Claude: ' + d.avg_claude_latency_ms + 'ms';
+    document.getElementById('s-success').textContent = d.success_rate + '%';
+    document.getElementById('s-noise').textContent   = d.noise_flags;
+    document.getElementById('s-voice').textContent   = d.voice_count;
+    document.getElementById('s-sms').textContent     = d.sms_count;
+
+    const rows = d.recent_calls.map(c => {
+      const badge = c.noise ? '<span class="badge badge-noise">⚠ noise</span>' :
+                    c.status==='ok' ? '<span class="badge badge-ok">✓</span>' :
+                    '<span class="badge badge-error">error</span>';
+      const type = c.type==='voice' ? '📞' : '💬';
+      return `<tr>
+        <td>${c.time}</td><td>${type} ${c.type}</td>
+        <td>···${c.caller}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.transcript||'—'}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recommendation||'—'}</td>
+        <td>${c.total_ms||'—'}</td><td>${c.claude_ms||'—'}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('callTable').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:#bbb;padding:24px">No calls yet</td></tr>';
+  });
+}
+load();
+setInterval(load, 8000);
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% set page = 'menu' %}
+{% block content %}
+<div class="container">
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:24px">Menu Manager</h1>
+
+  <div class="card">
+    <h2>Upload Restaurant Menu (PDF)</h2>
+    <form id="uploadForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="form-row"><label>Restaurant Name</label><input name="restaurant_name" placeholder="e.g. Cheesecake Factory" required></div>
+        <div class="form-row"><label>Plivo Phone Number</label><input name="plivo_number" placeholder="e.g. +14155551234" required></div>
+      </div>
+      <div class="form-row">
+        <label>Menu PDF</label>
+        <input type="file" name="file" accept=".pdf" required style="padding:7px">
+      </div>
+      <button type="submit" class="btn btn-primary">⬆ Upload &amp; Parse Menu</button>
+      <span id="uploadStatus" style="margin-left:14px;font-size:13px;color:#888"></span>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Active Restaurants</h2>
+    <table>
+      <thead><tr><th>Restaurant</th><th>Plivo Number</th><th>Menu File</th><th>Items Found</th><th>Uploaded</th></tr></thead>
+      <tbody id="restTable"><tr><td colspan="5" style="text-align:center;color:#bbb;padding:20px">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const BASE = '{{ base }}';
+function loadMenus(){
+  fetch(BASE+'/api/menu/list').then(r=>r.json()).then(d=>{
+    document.getElementById('restTable').innerHTML = d.length ? d.map(r=>`<tr>
+      <td><strong>${r.name}</strong></td>
+      <td><span class="tag">${r.plivo_number||'—'}</span></td>
+      <td>${r.menu_file||'—'}</td>
+      <td>${r.items||0} items</td>
+      <td>${r.uploaded_at?r.uploaded_at.substring(0,16):'—'}</td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:#bbb;padding:20px">No menus uploaded yet</td></tr>';
+  });
+}
+loadMenus();
+document.getElementById('uploadForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const st = document.getElementById('uploadStatus');
+  st.textContent = 'Uploading...';
+  const fd = new FormData(e.target);
+  const r = await fetch(BASE+'/api/menu/upload', {method:'POST', body:fd});
+  const d = await r.json();
+  if(d.status==='ok'){
+    st.style.color='#1e7e34';
+    st.textContent = `✓ Parsed ${d.items_found} items from ${d.filename}`;
+    loadMenus();
+  } else {
+    st.style.color='#c00';
+    st.textContent = 'Error: ' + (d.detail||'upload failed');
+  }
+});
+</script>
+{% endblock %}

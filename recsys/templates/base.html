@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RecsYS · HostBuddy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f5f4f2;color:#1a1a1a;min-height:100vh}
+nav{background:#1C1410;padding:0 28px;display:flex;align-items:center;height:52px;gap:28px;position:sticky;top:0;z-index:100}
+nav .logo{color:#E8A855;font-weight:700;font-size:15px;margin-right:16px;text-decoration:none}
+nav a{color:#8A7968;font-size:13px;font-weight:500;text-decoration:none;padding:6px 0;border-bottom:2px solid transparent;transition:.2s}
+nav a:hover,nav a.active{color:#E8A855;border-bottom-color:#E8A855}
+.container{max-width:1100px;margin:0 auto;padding:32px 24px}
+.card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:20px}
+.card h2{font-size:15px;font-weight:600;color:#333;margin-bottom:16px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:.2s}
+.btn-primary{background:#C8873A;color:#fff}.btn-primary:hover{background:#a86e2e}
+.btn-secondary{background:#f0ede8;color:#555}.btn-secondary:hover{background:#e5e0d8}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-ok{background:#e6f4ea;color:#1e7e34}
+.badge-noise{background:#fff3cd;color:#856404}
+.badge-error{background:#fde;color:#c00}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+.stat{background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.stat .val{font-size:28px;font-weight:700;color:#1C1410;margin-bottom:4px}
+.stat .lbl{font-size:12px;color:#8A7968;font-weight:500}
+.stat .sub{font-size:11px;color:#bbb;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8f6f2;padding:9px 12px;text-align:left;font-weight:600;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:9px 12px;border-bottom:1px solid #f0ede8;color:#333}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fdfcfa}
+input,select{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;outline:none}
+input:focus,select:focus{border-color:#C8873A}
+label{font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:5px}
+.form-row{margin-bottom:14px}
+.tag{display:inline-block;padding:3px 9px;background:#fef3e2;color:#C8873A;border:1px solid rgba(200,135,58,.25);border-radius:12px;font-size:11px;font-weight:600;margin:2px}
+</style>
+</head>
+<body>
+<nav>
+  <a href="{{ base }}/" class="logo">🍽 RecsYS</a>
+  <a href="{{ base }}/" {% if page=='dashboard' %}class="active"{% endif %}>Dashboard</a>
+  <a href="{{ base }}/menu" {% if page=='menu' %}class="active"{% endif %}>Menus</a>
+  <a href="{{ base }}/config" {% if page=='config' %}class="active"{% endif %}>Plivo Config</a>
+  <a href="{{ base }}/metrics" {% if page=='metrics' %}class="active"{% endif %}>Metrics</a>
+</nav>
+{% block content %}{% endblock %}
+</body>
+</html>

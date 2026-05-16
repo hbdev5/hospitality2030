@@ -1,0 +1,15 @@
+[Unit]
+Description=RecsYS FastAPI - HostBuddy Menu Recommender
+After=network.target
+
+[Service]
+User=azureuser
+WorkingDirectory=/home/azureuser/work/recsys
+EnvironmentFile=/home/azureuser/work/recsys/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/azureuser/work/recsys/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 5000 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

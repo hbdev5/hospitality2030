@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% set page = 'metrics' %}
+{% block content %}
+<div class="container">
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:24px">Detailed Metrics</h1>
+  <div class="card">
+    <h2>All Calls (last 20)</h2>
+    <table>
+      <thead><tr><th>Time</th><th>Type</th><th>Caller</th><th>Query</th><th>Recommendation</th><th>Total ms</th><th>Claude ms</th><th>Noise</th><th>Status</th></tr></thead>
+      <tbody id="mTable"><tr><td colspan="9" style="text-align:center;color:#bbb;padding:24px">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const BASE = '{{ base }}';
+fetch(BASE+'/api/metrics').then(r=>r.json()).then(d=>{
+  document.getElementById('mTable').innerHTML = d.recent_calls.length ? d.recent_calls.map(c=>`<tr>
+    <td>${c.time}</td>
+    <td>${c.type==='voice'?'📞 voice':'💬 sms'}</td>
+    <td>···${c.caller}</td>
+    <td>${c.transcript||'—'}</td>
+    <td>${c.recommendation||'—'}</td>
+    <td>${c.total_ms||'—'}</td>
+    <td>${c.claude_ms||'—'}</td>
+    <td>${c.noise?'<span class="badge badge-noise">⚠ yes</span>':'<span class="badge badge-ok">no</span>'}</td>
+    <td>${c.status}</td>
+  </tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:#bbb;padding:24px">No calls yet</td></tr>';
+});
+</script>
+{% endblock %}

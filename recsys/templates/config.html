@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% set page = 'config' %}
+{% block content %}
+<div class="container">
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:24px">Plivo Configuration</h1>
+
+  <div class="card">
+    <h2>Webhook URLs — paste these into Plivo Dashboard</h2>
+    <div style="margin-bottom:16px">
+      <label>Voice Webhook (Answer URL) — HTTP POST</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input readonly value="{{ voice_webhook }}" style="font-family:monospace;background:#f8f6f2;flex:1">
+        <button class="btn btn-secondary" onclick="copy('{{ voice_webhook }}')">Copy</button>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label>SMS Webhook (Message URL) — HTTP POST</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input readonly value="{{ sms_webhook }}" style="font-family:monospace;background:#f8f6f2;flex:1">
+        <button class="btn btn-secondary" onclick="copy('{{ sms_webhook }}')">Copy</button>
+      </div>
+    </div>
+
+    <div style="background:#fffbf0;border:1px solid rgba(200,135,58,.3);border-radius:10px;padding:14px 16px;font-size:13px;color:#7a5c00">
+      <strong>Plivo Dashboard Setup:</strong><br>
+      1. Go to <strong>Plivo Console → Phone Numbers → your number → Configure</strong><br>
+      2. Under <em>Call</em>: set <strong>Answer URL</strong> = Voice Webhook above, method = <strong>POST</strong><br>
+      3. Under <em>Message</em>: set <strong>Message URL</strong> = SMS Webhook above, method = <strong>POST</strong><br>
+      4. Save, then upload your restaurant menu in the <a href="{{ base }}/menu" style="color:#C8873A">Menus tab</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Speech Recognition (ASR)</h2>
+    <div style="background:#f0faf0;border:1px solid #b2d8b2;border-radius:10px;padding:14px 16px;font-size:13px;color:#2a5a2a">
+      <strong>✅ No Deepgram or Google ASR key needed.</strong><br><br>
+      Voice calls use Plivo's built-in <code>&lt;GetInput inputType="speech"&gt;</code> verb, which runs
+      Google Speech-to-Text internally. Plivo returns the transcribed text as <code>SpeechResult</code>
+      in the POST to your gather webhook. Billed as <strong>Plivo Speech Recognition</strong> — check your
+      Plivo plan for included minutes.<br><br>
+      SMS uses the caller's own text directly — no ASR needed.<br><br>
+      Claude (Anthropic API) handles <strong>recommendation generation only</strong>, using the menu text
+      and the caller's question. Set <code>ANTHROPIC_API_KEY</code> in <code>/home/azureuser/work/recsys/.env</code>.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Assigned Plivo Number</h2>
+    <span class="tag" style="font-size:15px;padding:6px 14px">{{ plivo_number or 'Not configured — set PLIVO_NUMBER in .env' }}</span>
+    <p style="margin-top:12px;font-size:13px;color:#888">After editing .env, run: <code>sudo systemctl restart recsys</code></p>
+  </div>
+
+  <div class="card">
+    <h2>.env Variables Required</h2>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <tr style="background:#f8f6f2"><th style="padding:8px;text-align:left">Variable</th><th style="padding:8px;text-align:left">Where to get it</th></tr>
+      <tr><td style="padding:8px;font-family:monospace">ANTHROPIC_API_KEY</td><td style="padding:8px">console.anthropic.com → API Keys</td></tr>
+      <tr style="background:#f8f6f2"><td style="padding:8px;font-family:monospace">PLIVO_AUTH_ID</td><td style="padding:8px">Plivo Console → Overview</td></tr>
+      <tr><td style="padding:8px;font-family:monospace">PLIVO_AUTH_TOKEN</td><td style="padding:8px">Plivo Console → Overview</td></tr>
+      <tr style="background:#f8f6f2"><td style="padding:8px;font-family:monospace">PLIVO_NUMBER</td><td style="padding:8px">Plivo Console → Phone Numbers (E.164 format, e.g. +14155551234)</td></tr>
+    </table>
+  </div>
+</div>
+<script>function copy(v){navigator.clipboard.writeText(v).then(()=>alert('Copied!'))}</script>
+{% endblock %}
