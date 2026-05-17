@@ -17,6 +17,7 @@ NOTE: Greeting is played by the inbound XML <Play> before Stream starts.
 """
 
 import asyncio, json, base64, time, hashlib
+from types import SimpleNamespace
 import httpx, websockets
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
@@ -51,7 +52,8 @@ def _load_menu(plivo_number: str) -> tuple:
         menu = (db.query(Menu)
                   .filter(Menu.restaurant_id == rest.id)
                   .order_by(Menu.id.desc()).first())
-        result = (rest, menu.raw_text if menu else None)
+        rest_data = SimpleNamespace(id=rest.id, name=rest.name)
+        result = (rest_data, menu.raw_text if menu else None)
         _menu_cache[plivo_number] = result
         return result
     finally:

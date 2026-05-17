@@ -11,6 +11,7 @@ Latency optimisations:
 """
 
 from fastapi import APIRouter, Request, Depends, BackgroundTasks
+from types import SimpleNamespace
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from app.database import get_db, SessionLocal, CallLog, Menu, Restaurant
@@ -38,7 +39,8 @@ def get_menu_cached(db: Session, plivo_number: str) -> tuple:
         _menu_cache[plivo_number] = (None, None)
         return None, None
     menu = db.query(Menu).filter(Menu.restaurant_id == rest.id).order_by(Menu.id.desc()).first()
-    result = (rest, menu.raw_text if menu else None)
+    rest_data = SimpleNamespace(id=rest.id, name=rest.name)
+    result = (rest_data, menu.raw_text if menu else None)
     _menu_cache[plivo_number] = result
     return result
 
