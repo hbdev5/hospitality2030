@@ -321,7 +321,25 @@ def find_item(menu: CachedMenu, item_name: str) -> Optional[CachedItem]:
     return best if best_score > 0 else None
 
 
-# ── Item image lookup (for kiosk visuals) ────────────────────────────────────
+# ── Item validation (Java findItem parity) + image lookup ────────────────────
+
+def has_structured_menu(restaurant_id: int) -> bool:
+    try:
+        return bool(_get(restaurant_id, "").items)
+    except Exception:
+        return False
+
+def match_item(restaurant_id: int, item_name: str):
+    """Best-match CachedItem for a (possibly misheard) name, or None.
+    add_to_cart uses this to REFUSE fabricated items (Java findItem behavior)."""
+    try:
+        return find_item(_get(restaurant_id, ""), item_name)
+    except Exception:
+        return None
+
+def base_name(item) -> str:
+    return _strip_paren_qualifier(item.name) if item else ""
+
 
 def image_for(restaurant_id: int, item_name: str) -> str:
     """Dish photo URL for an item (best-match), or '' if none."""

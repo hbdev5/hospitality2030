@@ -282,15 +282,29 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
         return menu_cache.get_modifier_options(restaurant_id, menu_text, args.get("item_name", "")), None
 
     if fn == "add_to_cart":
-        # Price source 1: raw_text via menu_cache (pipe-delimited menus)
-        detail = menu_cache.get_item_details(restaurant_id, menu_text, args["item_name"])
-        price = 0.0
-        m = re.search(r'\$(\d+(?:\.\d{1,2})?)', detail)
-        if m:
-            price = float(m.group(1))
-        # Price source 2: items_json (PDFs lacking $ in raw_text — e.g. Denny's)
+        req_name = (args.get("item_name") or "").strip()
+        # ── Java findItem parity: never add an item that isn't on the menu ──
+        # A misheard transcript ("Miller Light" → garble) was being added as a
+        # fabricated line ("Alaska Middle Of Light $17.99"). Validate first; if
+        # the restaurant has a structured menu and nothing matches, refuse and
+        # ask the guest to repeat. When matched, add the CANONICAL item (real
+        # name + price + photo), not the raw transcript.
+        matched = menu_cache.match_item(restaurant_id, req_name)
+        if matched is None and menu_cache.has_structured_menu(restaurant_id):
+            return (f"Hmm, I couldn't find \"{req_name}\" on our menu — "
+                    f"could you say that again?"), None
+
+        item_name   = (menu_cache.base_name(matched) or req_name) if matched else req_name
+        item_image  = (matched.image_url if matched else "") or menu_cache.image_for(restaurant_id, req_name)
+        price = (matched.price_cents or 0) / 100.0 if matched else 0.0
+        # Fallback price for menus without structured prices (raw_text / items_json).
         if price == 0.0:
-            price = _lookup_price(restaurant_id, args["item_name"])
+            detail = menu_cache.get_item_details(restaurant_id, menu_text, req_name)
+            m = re.search(r'\$(\d+(?:\.\d{1,2})?)', detail)
+            if m:
+                price = float(m.group(1))
+        if price == 0.0:
+            price = _lookup_price(restaurant_id, req_name)
 
         # Safety net: GPT sometimes echoes negated words as positive modifiers
         # ("no bacon" → modifiers=["bacon"]). Pull out anything that looks like
@@ -312,13 +326,13 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
                 cleaned.append(norm)
 
         add_msg = cart.add(
-            name=args["item_name"],
+            name=item_name,
             qty=args.get("quantity", 1),
             price=price,
             modifiers=cleaned,
             size=args.get("size", ""),
             special_instructions=special,
-            image_url=menu_cache.image_for(restaurant_id, args["item_name"]),
+            image_url=item_image,
         )
         # Java pattern: return cart summary so GPT sees what's actually in the cart
         # after the add — prevents duplicate items and helps with state tracking.
