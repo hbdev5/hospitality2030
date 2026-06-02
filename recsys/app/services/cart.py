@@ -28,6 +28,7 @@ class CartItem:
     modifiers:            List[str] = field(default_factory=list)
     size:                 str  = ""
     special_instructions: str  = ""
+    image_url:            str  = ""
     id:                   int   = field(default_factory=_next_cart_item_id)
 
     def display(self) -> str:
@@ -61,7 +62,7 @@ class Cart:
 
     def add(self, name: str, qty: int = 1, price: float = 0.0,
             modifiers: List[str] = None, size: str = "",
-            special_instructions: str = "") -> str:
+            special_instructions: str = "", image_url: str = "") -> str:
         self.touch()
         modifiers = modifiers or []
         # Exact match (name + modifiers + size) → bump quantity
@@ -120,7 +121,7 @@ class Cart:
         new_item = CartItem(
             name=name, quantity=qty, price=price,
             modifiers=modifiers, size=size,
-            special_instructions=special_instructions,
+            special_instructions=special_instructions, image_url=image_url,
         )
         self.items.append(new_item)
         self.current_item_id   = new_item.id
@@ -224,6 +225,7 @@ class Cart:
                     "modifiers": i.modifiers,
                     "size":     i.size,
                     "special_instructions": i.special_instructions,
+                    "image_url": i.image_url,
                 }
                 for i in self.items
             ],

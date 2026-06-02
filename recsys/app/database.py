@@ -89,6 +89,7 @@ class MenuItem(Base):
     display_name  = Column(String(256))
     price_cents   = Column(Integer, default=0)
     description   = Column(Text)
+    image_url     = Column(String(512))   # dish photo shown on kiosk/ordering
     external_id   = Column(String(64), index=True)
     category      = relationship('MenuCategory', lazy='joined')
 

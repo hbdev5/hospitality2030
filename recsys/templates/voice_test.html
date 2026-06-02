@@ -95,9 +95,11 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 32px;
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 30px 24px;
     background: #0F0F0F;
+    overflow-y: auto;
 }
 .receipt-col {
     background: #1A1A1A;
@@ -232,22 +234,36 @@ body {
     color: rgba(255,255,255,0.55);
 }
 
-/* Live transcript chip (bottom-left of voice column) */
+/* Big center mic is hidden — the oscillating soundbar is the live indicator now */
+#micButton { display: none !important; }
+
+/* Conversation snippet — moved UP, prominent, in normal flow */
 #transcript {
     display: none;
-    position: absolute;
-    left: 24px;
-    bottom: 24px;
-    max-width: 60%;
-    padding: 12px 14px;
-    background: rgba(40,40,40,0.8);
-    backdrop-filter: blur(6px);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    font-size: 13px;
-    line-height: 1.5;
-    color: rgba(255,255,255,0.9);
+    width: 100%;
+    max-width: 540px;
+    padding: 16px 18px;
+    background: rgba(40,40,40,0.85);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    font-size: 17px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.92);
+    text-align: left;
 }
+
+/* Options carousel — 2-3 photo cards when the agent presents choices */
+#optionsCarousel { display: none; width: 100%; max-width: 580px; }
+.opt-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.opt-card { width: 165px; background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 14px; overflow: hidden; text-align: left; }
+.opt-card img { width: 100%; height: 110px; object-fit: cover; display: block; }
+.opt-card .oc-body { padding: 10px 12px; }
+.opt-card .oc-name { font-size: 14px; font-weight: 600; color: #fff; }
+.opt-card .oc-desc { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 3px; line-height: 1.4; }
+.opt-card .oc-price { font-size: 13px; color: #C8873A; font-weight: 700; margin-top: 6px; }
+#itemPhoto { text-align: center; }
+#itemPhoto img { margin: 0 auto; }
+
 #status { display: none; }   /* legacy id kept for JS compatibility */
 
 /* ── Receipt panel (right column) ─────────────────────────────────────────── */
@@ -273,12 +289,16 @@ body {
 }
 .cart-row {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 46px 1fr auto;
+    align-items: center;
     column-gap: 12px;
     padding: 10px 0;
     border-bottom: 1px solid rgba(255,255,255,0.05);
     animation: cartRowIn 0.25s ease-out;
 }
+.cart-row .thumb { width: 46px; height: 46px; }
+.cart-row .thumb img { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; display: block; }
+#itemPhoto img { width: 100%; max-width: 300px; border-radius: 16px; box-shadow: 0 8px 28px rgba(0,0,0,.45); display: block; }
 @keyframes cartRowIn {
     from { opacity: 0; transform: translateX(8px); }
     to   { opacity: 1; transform: translateX(0); }
@@ -488,8 +508,14 @@ input[type="range"].setting-input { padding: 0; }
                 </div>
             </div>
 
-            <!-- Live transcript chip (bottom-left) -->
+            <!-- Conversation snippet (moved up, prominent) -->
             <div id="transcript"></div>
+
+            <!-- Options carousel — shown when the agent presents 2-3 choices -->
+            <div id="optionsCarousel"></div>
+
+            <!-- Appetizing photo of the single item being ordered -->
+            <div id="itemPhoto" style="display:none"></div>
 
             <!-- legacy id kept so existing JS doesn't break -->
             <div id="status"></div>
@@ -751,6 +777,30 @@ async function sendToAPI(blob) {
             `<strong style="color:#FFD56B">Oak & Ivy:</strong> ${escHtml(data.reply)}`;
         setStatus('Speaking&hellip;', '');
 
+        // Visuals: a carousel when the agent presents options, else a single hero photo
+        const photoEl = document.getElementById('itemPhoto');
+        const carEl   = document.getElementById('optionsCarousel');
+        if (data.options && data.options.length >= 2) {
+            carEl.innerHTML = '<div class="opt-row">' + data.options.map(o => `
+                <div class="opt-card">
+                  ${o.image_url ? `<img src="${o.image_url}" alt="">` : ''}
+                  <div class="oc-body">
+                    <div class="oc-name">${escHtml(o.name)}</div>
+                    ${(o.description || o.category) ? `<div class="oc-desc">${escHtml(o.description || o.category)}</div>` : ''}
+                    ${o.price ? `<div class="oc-price">$${Number(o.price).toFixed(2)}</div>` : ''}
+                  </div>
+                </div>`).join('') + '</div>';
+            carEl.style.display = 'block';
+            photoEl.style.display = 'none'; photoEl.innerHTML = '';
+        } else if (data.feature_image) {
+            photoEl.innerHTML = `<img src="${data.feature_image}" alt="">`;
+            photoEl.style.display = 'block';
+            carEl.style.display = 'none'; carEl.innerHTML = '';
+        } else {
+            photoEl.style.display = 'none'; photoEl.innerHTML = '';
+            carEl.style.display = 'none'; carEl.innerHTML = '';
+        }
+
         // Update Place Order button if checkout URL came back
         const placeBtn = document.getElementById('placeOrderBtn');
         if (data.checkout_url) {
@@ -805,7 +855,9 @@ function renderReceipt(items, serverTotal) {
         const metaHtml = meta.length ? `<div class="item-meta">${meta.join('')}</div>` : '';
         const lineTotal = (it.price || 0) * (it.quantity || 1);
         const priceStr  = lineTotal > 0 ? `$${lineTotal.toFixed(2)}` : '';
+        const thumb = it.image_url ? `<div class="thumb"><img src="${it.image_url}" alt=""></div>` : '<div class="thumb"></div>';
         return `<div class="cart-row">
+                  ${thumb}
                   <div>
                     <div class="item-name">${it.quantity}× ${escHtml(it.name)}</div>
                     ${metaHtml}

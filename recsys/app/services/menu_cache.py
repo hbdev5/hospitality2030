@@ -46,6 +46,7 @@ class CachedItem:
     price_cents:  int = 0
     description:  str = ""
     category:     str = "General"
+    image_url:    str = ""
     modifier_group_ids: List[int] = field(default_factory=list)
 
     @property
@@ -126,6 +127,7 @@ def _load_structured(restaurant_id: int) -> Optional[CachedMenu]:
                 price_cents = int(it.price_cents or 0),
                 description = it.description or "",
                 category    = cat_name_by_id.get(it.category_id, "General"),
+                image_url   = it.image_url or "",
                 modifier_group_ids = groups_per_item.get(it.id, []),
             ))
 
@@ -317,6 +319,56 @@ def find_item(menu: CachedMenu, item_name: str) -> Optional[CachedItem]:
         if score > best_score:
             best, best_score = it, score
     return best if best_score > 0 else None
+
+
+# ── Item image lookup (for kiosk visuals) ────────────────────────────────────
+
+def image_for(restaurant_id: int, item_name: str) -> str:
+    """Dish photo URL for an item (best-match), or '' if none."""
+    if not item_name:
+        return ""
+    try:
+        menu = _get(restaurant_id, "")
+        it = find_item(menu, item_name)
+        return (it.image_url if it else "") or ""
+    except Exception:
+        return ""
+
+
+_GENERIC_TAIL = {"beer", "coffee", "platter", "sandwich", "drink", "ale", "lager"}
+
+def items_mentioned(restaurant_id: int, text: str, limit: int = 3) -> list:
+    """Menu items NAMED in the given text (the agent's reply) — powers the
+    kiosk options carousel. Returns up to `limit` dicts {name,image_url,price,
+    description,category}. Matches the item's base name (and a short form with a
+    trailing generic word dropped, e.g. 'Miller Lite Beer' → 'miller lite')."""
+    if not text:
+        return []
+    t = " " + text.lower() + " "
+    try:
+        menu = _get(restaurant_id, "")
+    except Exception:
+        return []
+    seen, out = set(), []
+    for it in menu.items:
+        base = _strip_paren_qualifier(it.name).strip()
+        bl   = base.lower()
+        cands = [bl]
+        words = bl.split()
+        if len(words) > 1 and words[-1] in _GENERIC_TAIL:
+            cands.append(" ".join(words[:-1]))
+        if any(len(c) >= 4 and c in t for c in cands) and bl not in seen:
+            seen.add(bl)
+            out.append({
+                "name":        base,
+                "image_url":   it.image_url or "",
+                "price":       round((it.price_cents or 0) / 100, 2),
+                "description": (it.description or "").strip(),
+                "category":    it.category or "",
+            })
+            if len(out) >= limit:
+                break
+    return out
 
 
 # ── Tool: get_item_details ───────────────────────────────────────────────────

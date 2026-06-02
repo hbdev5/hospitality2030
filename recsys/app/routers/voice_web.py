@@ -70,10 +70,12 @@ def _transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm") -> t
     """Returns (transcript, language_code) using Google Speech."""
     try:
         audio  = google_speech.RecognitionAudio(content=audio_bytes)
+        # English-only on the kiosk. The Spanish auto-detect (alternative_language_
+        # codes) was flipping the agent to Spanish mid-order when a word was
+        # misheard — a demo-killer. Force en-US so the reply language never flips.
         config = google_speech.RecognitionConfig(
             encoding=google_speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
             language_code="en-US",
-            alternative_language_codes=["es-US", "es-ES"],
             enable_automatic_punctuation=True,
             model="latest_short",   # optimised for short utterances (< 60s)
         )
@@ -82,9 +84,8 @@ def _transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm") -> t
             return "", "en"
         result     = response.results[0]
         transcript = result.alternatives[0].transcript.strip() if result.alternatives else ""
-        language   = (result.language_code or "en-US").split("-")[0].lower()
-        print(f"[voice-web] stt [{language}]: {repr(transcript)}")
-        return transcript, language
+        print(f"[voice-web] stt: {repr(transcript)}")
+        return transcript, "en"
     except Exception as e:
         print(f"[voice-web] transcribe error: {e}")
         return "", "en"
@@ -112,9 +113,11 @@ async def web_voice_chat(audio: UploadFile = File(...),
 
     rest, menu_text = _load_menu()
 
-    checkout_url = None
-    cart_items   = None
-    cart_total   = None
+    checkout_url  = None
+    cart_items    = None
+    cart_total    = None
+    feature_image = None
+    options       = None
 
     if not menu_text:
         reply = "Our menu isn't available right now. Please try again soon."
@@ -140,10 +143,12 @@ async def web_voice_chat(audio: UploadFile = File(...),
             )
             if not skip_cache:
                 _claude_cache[key] = result
-        reply        = result["recommendation"]
-        checkout_url = result.get("checkout_url")
-        cart_items   = result.get("cart_items")
-        cart_total   = result.get("total")
+        reply         = result["recommendation"]
+        checkout_url  = result.get("checkout_url")
+        cart_items    = result.get("cart_items")
+        cart_total    = result.get("total")
+        feature_image = result.get("feature_image")
+        options       = result.get("options")
 
         # Append turn to history for next request; trim to last 12 messages
         hist.append({"role": "user",      "content": transcript})
@@ -179,4 +184,8 @@ async def web_voice_chat(audio: UploadFile = File(...),
     if cart_items:
         resp["cart_items"] = cart_items
         resp["cart_total"] = cart_total
+    if feature_image:
+        resp["feature_image"] = feature_image
+    if options:
+        resp["options"] = options
     return JSONResponse(resp)

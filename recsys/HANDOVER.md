@@ -2,9 +2,58 @@
 
 ## What This Is
 Voice + SMS + Browser-Kiosk AI ordering concierge for restaurants.
-Active demo client: **Curry Bliss** (structured menu migrated from the Java
-production DB — 25 items, 10 categories, 8 modifier groups). Being prepared
-for a demo to podcaster Robert Scoble — conversation smoothness is the bar.
+Active demo client: **Oak & Ivy (Bar & Kitchen)** — renamed from Curry Bliss →
+Prime House → Oak & Ivy (same restaurant_id=1, 25-item menu). Being prepared for
+a demo to PayPal.
+
+---
+
+## ⏭️ LATEST SESSION UPDATES (Jun 2026) — read this first
+
+**Code is now on GitHub:** `github.com/hbdev5/hospitality2030`, app under `recsys/`.
+- Branch **`subscriptions`** pushed (this session's work) → open PR to `main`.
+- Local clone: **`~/work/hospitality2030`** (the proper git checkout).
+- Auth: **SSH key** `~/.ssh/github_ed25519` (in `~/.ssh/config` for github.com).
+  Push needs no OTP/token. GitLab (`hostbuddy-ai/hostbuddy`) is **Java only**.
+- ⚠️ `gh` CLI is installed but **not** `gh auth login`'d — `gh pr create` needs that;
+  easiest is the browser PR link. `git push` works via SSH.
+- The **VM `/home/azureuser/work/recsys` is still scp-deployed (not git)** and is
+  what runs the live demo. Keep deploying there with scp + `systemctl restart recsys`.
+
+**What shipped this session (all live on the VM):**
+1. **Demo renamed** to Oak & Ivy. Name lives in 3 places: `restaurants.name`,
+   `vip_programs.card_title` (+ `card_subtitle` tagline), and hardcoded literals in
+   templates (agentstudio/text_chat/voice_test/vip_subscribe). To rename again: 2
+   SQL updates + those template literals (grep the old name).
+2. **VIP card is now an HTML flip card** (`templates/vip_card.html`) — front/back
+   flip, dark+gold, item photo bg, QR (data-URI) → verify page. Replaces the old
+   Pillow PNG (`vip_card.py` now unused). Served at `/vip/preview` (preview) and
+   `/vip/verify/{member_id}` (live member + redeem). Editable via Studio admin.
+3. **Honest conditional discount.** `vip_programs.discount_condition`
+   (always|weekdays|weekends). `vip.discount_applies_today()` checks the day in
+   **US/Pacific**. At `complete_order` the per-visit free perk AND the discount
+   show as explicit receipt line items; total reflects them. ⚠️ tz is hardcoded
+   Pacific — per-restaurant tz belongs in multi-tenancy.
+4. **Verbatim benefit capture** in admin chat (`admin_vip._parse_plan`): benefits
+   are captured as a LIST, exactly as said (keeps "on weekdays"), and drive all 3
+   card lines. The reply echoes them back ("Saved ✓ …"). No more paraphrasing.
+5. **Kiosk item photos.** `menu_items.image_url` (populated by
+   `scripts/populate_images.py`, keyword→category→verified Unsplash). Flows
+   `menu_cache.image_for → cart.image_url → recommender feature_image → voice_web`.
+   Kiosk shows a hero photo + receipt thumbnails; agent describes items
+   appetizingly. (Text channel shows thumbnails but no hero yet.)
+6. **Agent Studio icons** in `static/icons/` (srm.png, vision-intelligence.png);
+   LIVE/SOON tags hidden, no dimming; "Auto Marketing" → `/srm`, "Vision Intelligence".
+7. **Graceful LLM-outage handling** in `recommender` (429/quota → friendly message,
+   not a 500). OpenAI quota ran out mid-session once — top up billing if ordering
+   replies "having a brief hiccup".
+
+**New DB columns this session:** `vip_programs.discount_condition`,
+`menu_items.image_url` (plus earlier `benefit3`, `card_website`,
+`vip_subscribers.last_redeemed_at`). All added via `ALTER TABLE` on the VM
+(SQLAlchemy `create_all` does NOT alter existing tables).
+
+---
 
 - Live phone: **+1 (646) 440-8480**
 - Kiosk / browser voice UI: **https://support.hostbuddy.io/recsys/kiosk** (alias of `/voice-test`)

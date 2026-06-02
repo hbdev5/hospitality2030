@@ -318,6 +318,7 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
             modifiers=cleaned,
             size=args.get("size", ""),
             special_instructions=special,
+            image_url=menu_cache.image_for(restaurant_id, args["item_name"]),
         )
         # Java pattern: return cart summary so GPT sees what's actually in the cart
         # after the add — prevents duplicate items and helps with state tracking.
@@ -552,6 +553,9 @@ def get_recommendation(
                 try:
                     fp_out["total"]      = f"{cart.total():.2f}"
                     fp_out["cart_items"] = cart.to_dict()["items"]
+                    img = menu_cache.image_for(restaurant_id, cart.current_item_name)
+                    if img:
+                        fp_out["feature_image"] = img
                 except Exception:
                     pass
                 return fp_out
@@ -621,7 +625,9 @@ def get_recommendation(
         + "- Confirm naturally: 'Got it, Tuscan chicken sandwich.' NOT 'I have added...'.\n"
         + "- Never guess prices or items. Always use the tools to look them up.\n"
         + "- When user says 'I'm done', 'place my order', 'checkout', or similar: CALL complete_order IMMEDIATELY. Do NOT say 'I'll place' or 'finalizing' without calling the tool.\n"
-        + "ITEM PRESENTATION (when user asks about an item):\n"
+        + "ITEM PRESENTATION (when user asks about or orders an item):\n"
+        + "- When the guest asks about a CATEGORY (drinks, beers, coffee, etc.), NAME 2-3 specific menu items (e.g. 'We have Miller Lite, Bud Light, or a Plain Latte') — not just the category — so the kiosk can show their photos.\n"
+        + "- A PHOTO of the item is shown to the guest, so be VIVID & APPETIZING: add one short sensory detail to entice (e.g. 'a velvety oat-milk latte', 'a juicy char-grilled burger', 'crisp golden fries'). Keep it within the word limit.\n"
         + "- DO NOT read the raw description verbatim (e.g. don't say 'featuring double patty, cheese and bacon').\n"
         + "- Instead, frame around what's CONFIGURABLE. Use the 'Customizable:' line from get_item_details.\n"
         + "- Example: 'The Slam Burger is $10.50 — comes with sides and a choice of protein. Would you like one?'\n"
@@ -767,4 +773,24 @@ def get_recommendation(
                 out["cart_items"] = _cart_for_out.to_dict()["items"]
         except Exception:
             pass
+
+    # Feature image — the dish being ordered/configured this turn, so the kiosk
+    # can show an appetizing photo alongside the spoken reply.
+    try:
+        _c = cart_svc.get(session_id)
+        if _c and _c.current_item_name:
+            fimg = menu_cache.image_for(restaurant_id, _c.current_item_name)
+            if fimg:
+                out["feature_image"] = fimg
+    except Exception:
+        pass
+
+    # Options carousel — items the agent NAMED in its reply (e.g. "Miller Lite
+    # and Bud Light") so the kiosk can show 2-3 photo cards to preview choices.
+    try:
+        opts = menu_cache.items_mentioned(restaurant_id, text, 3)
+        if opts:
+            out["options"] = opts
+    except Exception:
+        pass
     return out
