@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ c.restaurant or "Curry Bliss" }} — Your Weekly VIP Picks</title>
+<style>
+  body{margin:0;background:#ece7df;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2a2a2a}
+  .email{max-width:600px;margin:0 auto;background:#fff}
+  .top{background:#1f2430;color:#fff;padding:22px 28px;text-align:center}
+  .top .brand{font-family:Georgia,serif;font-size:26px;color:#C5A03C;font-weight:700}
+  .top .tag{font-size:12px;color:#b9c0cc;letter-spacing:1px;margin-top:2px}
+  .hero{padding:26px 28px 10px}
+  .hero h1{font-size:22px;margin:0 0 4px}
+  .hero .wk{color:#8a93a6;font-size:13px}
+  .feat{margin:18px 28px;border:2px solid #f0c869;border-radius:14px;padding:22px;background:linear-gradient(160deg,#fffdf7,#fff4e0);text-align:center}
+  .feat .em{font-size:44px}
+  .feat h2{font-size:24px;margin:8px 0 6px}
+  .feat .desc{color:#5a6172;font-size:15px;margin-bottom:14px}
+  .feat .offer{display:inline-block;background:#1f2430;color:#fff;font-weight:700;padding:11px 20px;border-radius:9px}
+  .more{padding:8px 28px 4px}
+  .more h3{font-size:13px;letter-spacing:1.5px;color:#8a93a6;text-transform:uppercase;margin:14px 0 8px}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #eee;font-size:15px}
+  .row:last-child{border:none}.row .em{font-size:22px}.row .t{font-weight:600}.row .o{margin-left:auto;color:#C5A03C;font-weight:700;font-size:14px}
+  .foot{background:#f6f3ee;padding:20px 28px;text-align:center;color:#8a93a6;font-size:12px;line-height:1.6}
+  .cta{display:inline-block;background:#C5A03C;color:#1a1505;font-weight:700;text-decoration:none;padding:13px 24px;border-radius:9px;margin:8px 0 4px}
+  .banner{background:#fff7ea;border-bottom:1px solid #f0e0c0;color:#9a6a00;font-size:12px;text-align:center;padding:6px}
+</style>
+</head>
+<body>
+<div class="banner">PREVIEW — this is the email your VIP subscribers receive</div>
+<div class="email">
+  <div class="top">
+    <div class="brand">{{ c.restaurant or "Curry Bliss" }}</div>
+    <div class="tag">VIP REWARDS · sent weekly</div>
+  </div>
+
+  {% if c and c.featured %}
+  <div class="hero">
+    <h1>Your Weekly VIP Picks 🎁</h1>
+    <div class="wk">Week of {{ c.week_of }}</div>
+  </div>
+
+  <div class="feat">
+    <div class="em">{{ c.featured.emoji or "⭐" }}</div>
+    <h2>{{ c.featured.title }}</h2>
+    <div class="desc">{{ c.featured.description }}</div>
+    <span class="offer">{{ c.featured.offer }}</span>
+  </div>
+
+  <div class="more">
+    <h3>More this week</h3>
+    {% for s in c.secondary %}
+    <div class="row"><span class="em">{{ s.emoji or "•" }}</span><span class="t">{{ s.title }}</span><span class="o">{{ s.offer }}</span></div>
+    {% endfor %}
+  </div>
+
+  <div style="text-align:center;padding:18px 28px">
+    <a class="cta" href="#">Order now &amp; redeem</a>
+  </div>
+  {% else %}
+  <div class="hero"><h1>No campaign yet</h1><div class="wk">Generate one in the Marketing Studio.</div></div>
+  {% endif %}
+
+  <div class="foot">
+    You're receiving this as a {{ c.restaurant or "Curry Bliss" }} VIP member.<br>
+    Show this email or your member card to redeem · Unsubscribe anytime.
+  </div>
+</div>
+</body>
+</html>

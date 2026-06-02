@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Oak & Ivy — Kiosk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset + page background (kiosk-frame metallic) ───────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #fff;
+    background:
+        radial-gradient(ellipse at center 30%, #2a2a2a 0%, #161616 60%, #050505 100%);
+    overflow: hidden;
+}
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* The "kiosk screen" — black with metallic bezel suggestion */
+.kiosk-screen {
+    width: 100%;
+    max-width: 1280px;
+    height: calc(100vh - 48px);
+    max-height: 800px;
+    background: #0F0F0F;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+        0 0 0 6px #3a3a3a,             /* inner metallic bezel */
+        0 0 0 9px #1a1a1a,             /* dark seam */
+        0 0 0 16px #6e6e6e,             /* outer metallic bezel */
+        0 0 0 18px #2a2a2a,             /* dark outer seam */
+        0 30px 80px rgba(0,0,0,0.6);    /* drop shadow */
+    display: grid;
+    grid-template-rows: 64px 1fr;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
+.topbar {
+    background: linear-gradient(180deg, #D89548 0%, #C8873A 100%);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 0 24px;
+    gap: 24px;
+}
+.brand {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.18);
+}
+.topbar-subtitle {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.92);
+}
+.settings-button {
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+}
+.settings-button:hover { background: rgba(0,0,0,0.32); }
+
+/* ── Main layout: voice column + receipt column ───────────────────────────── */
+.kiosk-main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 0;
+    min-height: 0;
+}
+.voice-col {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: #0F0F0F;
+}
+.receipt-col {
+    background: #1A1A1A;
+    border-left: 1px solid #2A2A2A;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* ── Start button (initial CTA) ───────────────────────────────────────────── */
+.start-button {
+    padding: 16px 36px;
+    background: #C8873A;
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 6px 24px rgba(200,135,58,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.start-button:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(200,135,58,0.45); }
+.start-button.hidden { display: none; }
+
+/* ── Voice dots (top, when AI speaking) ────────────────────────────────────── */
+.voice-dots-container {
+    display: none;
+    gap: 10px;
+    margin-bottom: 32px;
+    height: 36px;
+    align-items: center;
+}
+.voice-dot {
+    width: 12px;
+    height: 36px;
+    background: #C8873A;
+    border-radius: 6px;
+    transition: transform 0.2s;
+}
+
+/* ── Mic button (the big center thing) ────────────────────────────────────── */
+.controls-container {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+}
+.controls-container.visible { display: flex; }
+
+.mic-control {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: #1f1f1f;
+    border: 3px solid #C8873A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s, transform 0.15s;
+    box-shadow: 0 0 0 0 rgba(200,135,58,0.5);
+}
+.mic-control.recording {
+    background: #C8873A;
+    animation: micPulse 1.6s ease-in-out infinite;
+}
+.mic-control.speaking {
+    background: #3FA37B;
+    border-color: #3FA37B;
+    animation: none;
+}
+@keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(200,135,58,0.45); }
+    50%      { box-shadow: 0 0 0 22px rgba(200,135,58,0); }
+}
+.mic-icon { z-index: 2; pointer-events: none; }
+.mic-icon svg { width: 60px; height: 60px; fill: #fff; }
+.mic-dots-wrapper {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.mic-control.recording .mic-dots-wrapper { opacity: 0; } /* dots hidden during VAD */
+.mic-dot {
+    width: 4px;
+    height: 5px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 2px;
+    transition: height 0.08s linear;
+}
+
+/* Close (X) button to end the session */
+.close-button {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.6);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    font-family: inherit;
+}
+.close-button:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
+
+/* Status text below mic ("Listening…" / "Speaking…" / "Got it…") */
+.status-stack {
+    margin-top: 28px;
+    text-align: center;
+    min-height: 70px;
+}
+.status-line {
+    font-size: 28px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+}
+.status-sub {
+    font-size: 15px;
+    color: rgba(255,255,255,0.55);
+}
+
+/* Live transcript chip (bottom-left of voice column) */
+#transcript {
+    display: none;
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
+    max-width: 60%;
+    padding: 12px 14px;
+    background: rgba(40,40,40,0.8);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.9);
+}
+#status { display: none; }   /* legacy id kept for JS compatibility */
+
+/* ── Receipt panel (right column) ─────────────────────────────────────────── */
+.receipt-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 16px;
+}
+.cart-lines {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+.cart-lines::-webkit-scrollbar { width: 6px; }
+.cart-lines::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.cart-empty {
+    color: rgba(255,255,255,0.35);
+    font-size: 14px;
+    text-align: center;
+    padding: 32px 12px;
+}
+.cart-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    animation: cartRowIn 0.25s ease-out;
+}
+@keyframes cartRowIn {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.cart-row:last-child { border-bottom: none; }
+.cart-row .item-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 2px;
+}
+.cart-row .item-meta {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.5;
+}
+.cart-row .item-meta div { padding-left: 12px; }
+.cart-row .item-price {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Totals block (sticky at bottom of receipt) */
+.totals {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 14px;
+    margin-bottom: 14px;
+}
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    font-variant-numeric: tabular-nums;
+}
+.total-row.grand {
+    font-size: 24px;
+    font-weight: 700;
+    color: #FFD56B;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 6px;
+}
+.total-row.grand span:first-child { letter-spacing: 0.08em; }
+
+/* Place Order button */
+.place-order {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    background: #0070BA;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    box-shadow: 0 4px 16px rgba(0,112,186,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+    font-family: inherit;
+}
+.place-order:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,112,186,0.5); }
+.place-order.disabled {
+    background: #2A2A2A;
+    color: rgba(255,255,255,0.35);
+    pointer-events: none;
+    box-shadow: none;
+}
+
+/* ── Settings panel (modal) — unchanged ───────────────────────────────────── */
+.overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+}
+.settings-panel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 340px;
+    background: #1A1A1A;
+    border: 1px solid #2A2A2A;
+    border-radius: 12px;
+    padding: 24px;
+    z-index: 101;
+    color: #fff;
+}
+.settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.settings-title  { font-size: 18px; font-weight: 600; }
+.settings-close-button {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.65);
+    cursor: pointer;
+    font-size: 18px;
+}
+.setting-item    { margin-bottom: 14px; }
+.setting-label   { display: block; font-size: 13px; color: rgba(255,255,255,0.75); margin-bottom: 6px; }
+.setting-input   {
+    width: 100%;
+    padding: 8px 10px;
+    background: #0F0F0F;
+    border: 1px solid #2A2A2A;
+    border-radius: 6px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+}
+input[type="range"].setting-input { padding: 0; }
+.settings-footer { margin-top: 16px; text-align: right; }
+.settings-save-btn {
+    padding: 8px 18px;
+    background: #C8873A;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* ── Mobile / tablet ──────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    body { padding: 0; }
+    .kiosk-screen {
+        height: 100vh;
+        max-height: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .kiosk-main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    .receipt-col { border-left: none; border-top: 1px solid #2A2A2A; max-height: 45vh; }
+    .topbar-subtitle { display: none; }
+    .mic-control { width: 140px; height: 140px; }
+    .mic-icon svg { width: 46px; height: 46px; }
+}
+</style>
+</head>
+<body>
+
+<div class="kiosk-screen">
+    <!-- Top bar -->
+    <header class="topbar">
+        <h1 class="brand">OAK & IVY</h1>
+        <div class="topbar-subtitle">Order with your voice</div>
+        <button id="settingsButton" class="settings-button">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                <path d="M10 13.75C12.07 13.75 13.75 12.07 13.75 10C13.75 7.93 12.07 6.25 10 6.25C7.93 6.25 6.25 7.93 6.25 10C6.25 12.07 7.93 13.75 10 13.75Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M16.1 16.1L13.36 13.36M13.36 6.64L16.1 3.9M3.9 16.1L6.64 13.36M6.64 6.64L3.9 3.9" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            Settings
+        </button>
+    </header>
+
+    <!-- Two columns: voice on left, receipt on right -->
+    <main class="kiosk-main">
+        <!-- Voice column -->
+        <section class="voice-col">
+            <!-- Animated voice dots, shown while bot is speaking -->
+            <div class="voice-dots-container" id="voiceDotsContainer">
+                <div class="voice-dot" id="vd1"></div>
+                <div class="voice-dot" id="vd2"></div>
+                <div class="voice-dot" id="vd3"></div>
+                <div class="voice-dot" id="vd4"></div>
+                <div class="voice-dot" id="vd5"></div>
+            </div>
+
+            <!-- Initial CTA -->
+            <button id="startButton" class="start-button">START A CONVERSATION</button>
+
+            <!-- Mic + close (shown after start) -->
+            <div id="controlsContainer" class="controls-container">
+                <div id="micButton" class="mic-control">
+                    <div class="mic-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </div>
+                    <div class="mic-dots-wrapper" id="micDotsWrapper">
+                        <div class="mic-dot" id="md1"></div>
+                        <div class="mic-dot" id="md2"></div>
+                        <div class="mic-dot" id="md3"></div>
+                        <div class="mic-dot" id="md4"></div>
+                        <div class="mic-dot" id="md5"></div>
+                    </div>
+                </div>
+                <button id="closeButton" class="close-button" title="End session">&#x2715;</button>
+
+                <!-- Status text under mic -->
+                <div class="status-stack">
+                    <div class="status-line" id="statusLine">Listening&hellip;</div>
+                    <div class="status-sub" id="statusSub">What can I get for you?</div>
+                </div>
+            </div>
+
+            <!-- Live transcript chip (bottom-left) -->
+            <div id="transcript"></div>
+
+            <!-- legacy id kept so existing JS doesn't break -->
+            <div id="status"></div>
+        </section>
+
+        <!-- Receipt column -->
+        <aside class="receipt-col">
+            <h2 class="receipt-title">YOUR ORDER</h2>
+
+            <div class="cart-lines" id="cartLines">
+                <div class="cart-empty">Your order will appear here as you speak.</div>
+            </div>
+
+            <div class="totals">
+                <div class="total-row"><span>Subtotal</span><span id="subtotalVal">$0.00</span></div>
+                <div class="total-row"><span>Tax (8.5%)</span><span id="taxVal">$0.00</span></div>
+                <div class="total-row grand"><span>TOTAL</span><span id="totalVal">$0.00</span></div>
+            </div>
+
+            <a id="placeOrderBtn" class="place-order disabled" href="#" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                PLACE ORDER
+            </a>
+
+            <!-- legacy ids kept so existing JS doesn't break (hidden duplicates) -->
+            <div id="cartBox" style="display:none"><div id="cartTotal"></div></div>
+            <div id="checkoutBar" style="display:none"><a id="checkoutLink" href="#"></a></div>
+        </aside>
+    </main>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="overlay"></div>
+<div class="settings-panel" id="settingsPanel">
+    <div class="settings-header">
+        <h2 class="settings-title">Settings</h2>
+        <button class="settings-close-button" id="closeSettings">&#x2715;</button>
+    </div>
+    <div>
+        <div class="setting-item">
+            <label class="setting-label" for="volThreshold">Mic Sensitivity <span id="volVal">0.05</span></label>
+            <input type="range" id="volThreshold" class="setting-input" min="0.01" max="0.3" step="0.01" value="0.05"/>
+        </div>
+        <div class="setting-item">
+            <label class="setting-label" for="pauseThreshold">Pause before sending (ms)</label>
+            <input type="number" id="pauseThreshold" class="setting-input" min="500" max="4000" step="100" value="1500"/>
+        </div>
+    </div>
+    <div class="settings-footer">
+        <button id="applySettings" class="settings-save-btn">Save</button>
+    </div>
+</div>
+
+<script>
+const BASE = '{{ base }}';
+const SESSION_ID = 'web-' + Math.random().toString(36).slice(2, 10);
+const TAX_RATE = 0.085;   // displayed on the receipt; server-side total is authoritative
+
+// — State
+let mediaRec    = null;
+let chunks      = [];
+let isRec       = false;
+let isPlaying   = false;
+let audioCtx    = null;
+let analyser    = null;
+let micStream   = null;
+let animFrameId = null;
+let speakAnimId = null;
+let pauseMs     = 800;
+
+// — Elements
+const startBtn     = document.getElementById('startButton');
+const controls     = document.getElementById('controlsContainer');
+const micBtn       = document.getElementById('micButton');
+const closeBtn     = document.getElementById('closeButton');
+const transcriptEl = document.getElementById('transcript');
+const voiceDots    = document.getElementById('voiceDotsContainer');
+const micDots      = [md1, md2, md3, md4, md5];
+const vDots        = [vd1, vd2, vd3, vd4, vd5];
+const settingsBtn  = document.getElementById('settingsButton');
+const settingsPanel= document.getElementById('settingsPanel');
+const overlay      = document.getElementById('overlay');
+const closeSettings= document.getElementById('closeSettings');
+const applySettings= document.getElementById('applySettings');
+const statusLine   = document.getElementById('statusLine');
+const statusSub    = document.getElementById('statusSub');
+
+// ─── VAD config (tunable via settings) ───────────────────────────────────────
+let VAD_THRESHOLD = 0.05;
+let PAUSE_MS      = 1500;
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let vadRunning    = false;
+let silenceTimer  = null;
+let currentAudio  = null;
+
+// ─── Status text helper ──────────────────────────────────────────────────────
+function setStatus(line, sub) {
+    if (statusLine) statusLine.innerHTML = line;
+    if (statusSub)  statusSub.textContent = sub || '';
+}
+
+// ─── Start conversation ───────────────────────────────────────────────────────
+startBtn.addEventListener('click', async () => {
+    startBtn.classList.add('hidden');
+    voiceDots.style.display = 'flex';
+    controls.classList.add('visible');
+    setStatus('Connecting&hellip;', '');
+
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        });
+    } catch(e) {
+        transcriptEl.style.display = 'block';
+        transcriptEl.textContent = 'Microphone access denied — check browser permissions';
+        return;
+    }
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    audioCtx.createMediaStreamSource(micStream).connect(analyser);
+
+    try {
+        const r    = await fetch(`${BASE}/api/voice/web/greet`);
+        const data = await r.json();
+        if (data.audio_url) {
+            transcriptEl.style.display = 'block';
+            transcriptEl.innerHTML = `<strong>Oak & Ivy:</strong> ${escHtml(data.greeting)}`;
+            setStatus('Greeting&hellip;', '');
+            playReply(data.audio_url, startVAD);
+            return;
+        }
+    } catch(e) { /* greeting not fatal */ }
+    startVAD();
+});
+
+// ─── Close / reset ────────────────────────────────────────────────────────────
+closeBtn.addEventListener('click', () => {
+    stopVAD();
+    stopCapture(false);
+    stopPlayback();
+    startBtn.classList.remove('hidden');
+    voiceDots.style.display = 'none';
+    controls.classList.remove('visible');
+    transcriptEl.style.display = 'none';
+    resetMicDots();
+    resetVoiceDots();
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+});
+
+// ─── VAD loop ─────────────────────────────────────────────────────────────────
+
+function startVAD() {
+    vadRunning = true;
+    setStatus('Listening&hellip;', 'What can I get for you?');
+    micBtn.classList.remove('recording', 'speaking', 'disabled');
+    requestAnimationFrame(vadLoop);
+}
+
+function stopVAD() {
+    vadRunning = false;
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+}
+
+function vadLoop() {
+    if (!vadRunning || !analyser) return;
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(data);
+
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+        const x = (data[i] - 128) / 128;
+        sum += x * x;
+    }
+    const rms = Math.sqrt(sum / data.length);
+
+    micDots.forEach((dot, i) => {
+        const offsets = [0, 0.2, 0.4, 0.6, 0.8];
+        const v = Math.max(0, rms - 0.01) * (1 - offsets[i] * 0.3);
+        dot.style.height = (5 + Math.min(v * 200, 19)) + 'px';
+    });
+
+    if (!isPlaying) {
+        if (!isRec && rms > VAD_THRESHOLD) {
+            startCapture();
+        } else if (isRec) {
+            if (rms > VAD_THRESHOLD * 0.6) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            } else if (!silenceTimer) {
+                silenceTimer = setTimeout(() => {
+                    silenceTimer = null;
+                    stopCapture(true);
+                }, PAUSE_MS);
+            }
+        }
+    }
+
+    requestAnimationFrame(vadLoop);
+}
+
+// ─── Capture (MediaRecorder, started/stopped by VAD) ─────────────────────────
+
+function startCapture() {
+    if (isRec || !micStream) return;
+    chunks   = [];
+    mediaRec = new MediaRecorder(micStream);
+    mediaRec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    mediaRec.start();
+    isRec = true;
+    micBtn.classList.add('recording');
+    setStatus('Listening&hellip;', '');
+}
+
+async function stopCapture(send) {
+    if (!isRec || !mediaRec) return;
+    isRec = false;
+    micBtn.classList.remove('recording');
+    resetMicDots();
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+
+    await new Promise(res => { mediaRec.onstop = res; mediaRec.stop(); });
+    if (!send || chunks.length === 0) return;
+
+    const blob = new Blob(chunks, {type: mediaRec.mimeType || 'audio/webm'});
+    await sendToAPI(blob);
+}
+
+// ─── API call ─────────────────────────────────────────────────────────────────
+
+async function sendToAPI(blob) {
+    stopVAD();
+    setStatus('Thinking&hellip;', '');
+
+    const fd = new FormData();
+    fd.append('audio', blob, 'audio.webm');
+    fd.append('session_id', SESSION_ID);
+
+    try {
+        const r    = await fetch(`${BASE}/api/voice/web/chat`, {method:'POST', body:fd});
+        const data = await r.json();
+
+        if (data.error || !data.transcript) {
+            transcriptEl.style.display = 'block';
+            transcriptEl.textContent = data.error || 'Could not hear you — try again';
+            startVAD();
+            return;
+        }
+
+        transcriptEl.style.display = 'block';
+        transcriptEl.innerHTML =
+            `<strong>You:</strong> ${escHtml(data.transcript)}<br/>` +
+            `<strong style="color:#FFD56B">Oak & Ivy:</strong> ${escHtml(data.reply)}`;
+        setStatus('Speaking&hellip;', '');
+
+        // Update Place Order button if checkout URL came back
+        const placeBtn = document.getElementById('placeOrderBtn');
+        if (data.checkout_url) {
+            placeBtn.href = data.checkout_url;
+            placeBtn.classList.remove('disabled');
+            placeBtn.innerHTML =
+                '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> PAY NOW WITH PAYPAL';
+        }
+
+        // Render live receipt
+        renderReceipt(data.cart_items, data.cart_total);
+
+        if (data.audio_url) {
+            playReply(data.audio_url, () => { setStatus('Listening&hellip;', ''); startVAD(); });
+        } else {
+            startVAD();
+        }
+    } catch(e) {
+        transcriptEl.style.display = 'block';
+        transcriptEl.textContent = 'Error — please try again';
+        startVAD();
+    }
+}
+
+// ─── Receipt renderer ────────────────────────────────────────────────────────
+function renderReceipt(items, serverTotal) {
+    const linesEl    = document.getElementById('cartLines');
+    const subtotalEl = document.getElementById('subtotalVal');
+    const taxEl      = document.getElementById('taxVal');
+    const totalEl    = document.getElementById('totalVal');
+    const placeBtn   = document.getElementById('placeOrderBtn');
+
+    if (!items || !items.length) {
+        linesEl.innerHTML = '<div class="cart-empty">Your order will appear here as you speak.</div>';
+        subtotalEl.textContent = '$0.00';
+        taxEl.textContent      = '$0.00';
+        totalEl.textContent    = '$0.00';
+        if (!placeBtn.href || placeBtn.href.endsWith('#')) {
+            placeBtn.classList.add('disabled');
+        }
+        return;
+    }
+
+    // Build line items
+    linesEl.innerHTML = items.map(it => {
+        const meta = [];
+        if (it.modifiers && it.modifiers.length) {
+            meta.push(...it.modifiers.map(m => `<div>${escHtml(m)}</div>`));
+        }
+        if (it.size) meta.push(`<div>Size: ${escHtml(it.size)}</div>`);
+        if (it.special_instructions) meta.push(`<div>Note: ${escHtml(it.special_instructions)}</div>`);
+        const metaHtml = meta.length ? `<div class="item-meta">${meta.join('')}</div>` : '';
+        const lineTotal = (it.price || 0) * (it.quantity || 1);
+        const priceStr  = lineTotal > 0 ? `$${lineTotal.toFixed(2)}` : '';
+        return `<div class="cart-row">
+                  <div>
+                    <div class="item-name">${it.quantity}× ${escHtml(it.name)}</div>
+                    ${metaHtml}
+                  </div>
+                  <div class="item-price">${priceStr}</div>
+                </div>`;
+    }).join('');
+
+    // Totals — server-side `cart_total` already includes modifier prices
+    const subtotal = parseFloat(serverTotal || '0') || 0;
+    const tax      = subtotal * TAX_RATE;
+    const grand    = subtotal + tax;
+    subtotalEl.textContent = '$' + subtotal.toFixed(2);
+    taxEl.textContent      = '$' + tax.toFixed(2);
+    totalEl.textContent    = '$' + grand.toFixed(2);
+
+    // Enable place order if there are items and we don't yet have a checkout URL
+    if (!placeBtn.href || placeBtn.href.endsWith('#')) {
+        placeBtn.classList.add('disabled');   // can't pay until user says "I'm done"
+    }
+}
+
+// ─── Playback ─────────────────────────────────────────────────────────────────
+
+function playReply(url, onDone) {
+    isPlaying = true;
+    micBtn.classList.add('speaking');
+    speakAnimId = requestAnimationFrame(animateVoiceDots);
+
+    const safetyTimer = setTimeout(() => done(), 30000);
+
+    function done() {
+        clearTimeout(safetyTimer);
+        if (isPlaying) {
+            isPlaying = false;
+            cancelAnimationFrame(speakAnimId);
+            micBtn.classList.remove('speaking');
+            resetVoiceDots();
+            if (onDone) onDone();
+        }
+    }
+
+    currentAudio = new Audio(url);
+    currentAudio.onended = done;
+    currentAudio.onerror = done;
+    currentAudio.play().catch(done);
+}
+
+function stopPlayback() {
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    isPlaying = false;
+    cancelAnimationFrame(speakAnimId);
+    micBtn.classList.remove('speaking');
+    resetVoiceDots();
+}
+
+// ─── Animations ───────────────────────────────────────────────────────────────
+
+function animateVoiceDots() {
+    vDots.forEach(dot => {
+        dot.style.transform = `scaleY(${0.6 + Math.random() * 0.8})`;
+    });
+    speakAnimId = requestAnimationFrame(animateVoiceDots);
+}
+
+function resetMicDots()   { micDots.forEach(d => d.style.height = '5px'); }
+function resetVoiceDots() { vDots.forEach(d => d.style.transform = 'scaleY(1)'); }
+function escHtml(s)       { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+settingsBtn.addEventListener('click', () => {
+    settingsPanel.style.display = 'block';
+    overlay.style.display = 'block';
+});
+function closeSettingsPanel() {
+    settingsPanel.style.display = 'none';
+    overlay.style.display = 'none';
+}
+closeSettings.addEventListener('click', closeSettingsPanel);
+overlay.addEventListener('click', closeSettingsPanel);
+
+const volSlider = document.getElementById('volThreshold');
+const volVal    = document.getElementById('volVal');
+volSlider.addEventListener('input', () => { volVal.textContent = parseFloat(volSlider.value).toFixed(2); });
+
+applySettings.addEventListener('click', () => {
+    VAD_THRESHOLD = parseFloat(volSlider.value) || 0.05;
+    PAUSE_MS      = parseInt(document.getElementById('pauseThreshold').value) || 1500;
+    try { localStorage.setItem('vaSettings', JSON.stringify({vol: VAD_THRESHOLD, pause: PAUSE_MS})); } catch(e) {}
+    closeSettingsPanel();
+});
+
+// Load saved settings
+try {
+    const s = localStorage.getItem('vaSettings');
+    if (s) {
+        const obj = JSON.parse(s);
+        if (obj.vol)   { VAD_THRESHOLD = obj.vol;   volSlider.value = obj.vol; volVal.textContent = obj.vol.toFixed(2); }
+        if (obj.pause) { PAUSE_MS = obj.pause; document.getElementById('pauseThreshold').value = obj.pause; }
+    }
+} catch(e) {}
+</script>
+</body>
+</html>

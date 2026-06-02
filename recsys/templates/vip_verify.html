@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }} — Membership Verification</title>
+<style>
+  :root{ --gold:#C5A03C; --ink:#1f2430; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(160deg,#13131a 0%,#23202a 100%);color:#eee;min-height:100vh;
+       display:flex;align-items:flex-start;justify-content:center;padding:22px}
+  .wrap{max-width:460px;width:100%}
+  .status{display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px;font-weight:800;
+          padding:16px;border-radius:14px;margin-bottom:16px}
+  .status.ok{background:#0f2e1c;color:#34d27b;border:1px solid #1f7a4d}
+  .status.no{background:#2e1414;color:#ff6b6b;border:1px solid #7a1f1f}
+  .dot{width:12px;height:12px;border-radius:50%}
+  .ok .dot{background:#34d27b}.no .dot{background:#ff6b6b}
+  .panel{background:rgba(255,255,255,.04);border:1px solid rgba(197,160,60,.3);border-radius:16px;padding:20px;margin-bottom:16px}
+  .row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:15px}
+  .row:last-child{border:none}
+  .row .k{color:#9aa1b1}.row .v{font-weight:600}
+  .gold{color:var(--gold)}
+  h2{font-size:13px;letter-spacing:1.5px;color:#9aa1b1;text-transform:uppercase;margin:0 0 10px}
+  ul{margin:0;padding-left:20px}li{padding:5px 0;font-size:15px}
+  .cardimg{width:100%;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);margin-top:6px}
+  .brand{text-align:center;font-family:Georgia,serif;font-size:26px;font-weight:700;color:var(--gold);margin-bottom:4px}
+  .sub{text-align:center;color:#9aa1b1;font-size:13px;margin-bottom:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">{{ title }}</div>
+  <div class="sub">{{ program_name }} Membership Verification</div>
+
+  {% if active %}
+    <div class="status ok"><span class="dot"></span>ACTIVE MEMBER</div>
+  {% elif found %}
+    <div class="status no"><span class="dot"></span>MEMBERSHIP INACTIVE</div>
+  {% else %}
+    <div class="status no"><span class="dot"></span>NOT FOUND</div>
+  {% endif %}
+
+  {% if found %}
+  <div class="panel">
+    <div class="row"><span class="k">Member</span><span class="v">{{ name }}</span></div>
+    {% if contact %}<div class="row"><span class="k">Contact</span><span class="v">{{ contact }}</span></div>{% endif %}
+    <div class="row"><span class="k">Valid</span><span class="v gold">{{ valid_from }} – {{ valid_to }}</span></div>
+    <div class="row"><span class="k">Member ID</span><span class="v" style="font-family:monospace;font-size:12px">{{ member_id }}</span></div>
+  </div>
+
+  {% if benefits %}
+  <div class="panel">
+    <h2>Member Benefits</h2>
+    <ul>{% for b in benefits %}<li>{{ b }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if can_redeem %}
+  <div class="panel" style="text-align:center">
+    <h2>Redeem Today's Benefit</h2>
+    <div style="color:#cfc8b6;font-size:14px;margin-bottom:12px">{{ redeem_label }}</div>
+    <button id="redeemBtn" {% if redeemed_today %}disabled{% endif %}
+      style="width:100%;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;
+             background:{% if redeemed_today %}#444{% else %}var(--gold){% endif %};color:#1a1505">
+      {% if redeemed_today %}✓ Redeemed today{% else %}Redeem now{% endif %}
+    </button>
+    <div id="redeemMsg" style="margin-top:10px;font-size:13px;color:#9aa1b1"></div>
+  </div>
+  {% endif %}
+
+  {% if card_url %}<img class="cardimg" src="{{ card_url }}" alt="VIP card">{% endif %}
+  {% else %}
+  <div class="panel"><p style="color:#9aa1b1;text-align:center;margin:6px 0">This membership could not be found. Please check the link or contact {{ title }}.</p></div>
+  {% endif %}
+</div>
+<script>
+const btn = document.getElementById('redeemBtn');
+if (btn) btn.addEventListener('click', async () => {
+  btn.disabled = true;
+  const msg = document.getElementById('redeemMsg');
+  try {
+    const r = await fetch('{{ base }}/api/vip/redeem/{{ member_id }}', {method:'POST'});
+    const d = await r.json();
+    if (d.status === 'redeemed') {
+      btn.textContent = '✓ Redeemed today'; btn.style.background = '#444';
+      msg.textContent = 'Enjoy! Come back tomorrow for your next benefit.';
+    } else if (d.status === 'already') {
+      btn.textContent = '✓ Redeemed today'; btn.style.background = '#444';
+      msg.textContent = 'Already redeemed today' + (d.redeemed_at ? ' at ' + d.redeemed_at : '') + '.';
+    } else {
+      msg.textContent = 'Could not redeem — membership not active.'; btn.disabled = false;
+    }
+  } catch (e) { msg.textContent = 'Something went wrong.'; btn.disabled = false; }
+});
+</script>
+</body>
+</html>

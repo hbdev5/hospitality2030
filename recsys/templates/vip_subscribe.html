@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oak & Ivy — {{ program_name }} Membership</title>
+<style>
+  :root{ --orange:#E8772E; --blue:#2563EB; --ink:#1f2430; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(160deg,#fff 0%,#f4f1ea 100%);color:var(--ink);min-height:100vh;
+       display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,.12);max-width:440px;width:100%;overflow:hidden}
+  .head{background:var(--orange);color:#fff;padding:26px 28px;text-align:center}
+  .head .badge{font-size:13px;letter-spacing:2px;opacity:.9;text-transform:uppercase}
+  .head h1{margin:6px 0 0;font-size:30px;font-weight:800}
+  .body{padding:28px}
+  .price{font-size:44px;font-weight:800;text-align:center;color:var(--ink)}
+  .price span{font-size:18px;color:#8a93a6;font-weight:500}
+  .benefit{background:#fff7f0;border:1px solid #f6dcc4;border-radius:12px;padding:16px;margin:18px 0;text-align:center}
+  .benefit b{color:var(--orange)}
+  .disc{font-size:14px;color:#5a6172;text-align:center;margin-top:-6px}
+  #paypal-button-container{margin-top:18px;min-height:48px}
+  .note{font-size:12px;color:#9aa1b1;text-align:center;margin-top:14px}
+  .ok{background:#e9f9ef;border:1px solid #b6e6c8;color:#1f7a44;border-radius:12px;padding:18px;text-align:center;font-weight:600}
+  .err{background:#fdecec;border:1px solid #f3c2c2;color:#b3261e;border-radius:10px;padding:12px;font-size:13px;text-align:center}
+  a.back{display:block;text-align:center;margin-top:16px;color:#8a93a6;font-size:13px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <div class="badge">Oak & Ivy</div>
+    <h1>{{ program_name }} Membership</h1>
+  </div>
+  <div class="body">
+    <div class="price">{{ fee }}<span>/month</span></div>
+    <div class="benefit">Members get <b>{{ benefit }}</b></div>
+    {% if discount and discount > 0 %}<div class="disc">Plus {{ discount }}% off every visit</div>{% endif %}
+
+    {% if already %}
+      <div class="ok" id="state">You're already a {{ program_name }} member 🎉<br>Your benefits apply automatically every visit.</div>
+    {% elif error or not plan_id or not paypal_client_id %}
+      <div class="err">Membership signup isn't available right now. Please ask the restaurant to finish PayPal setup.</div>
+    {% else %}
+      <div id="paypal-button-container"></div>
+      <div class="ok" id="success" style="display:none">Welcome to {{ program_name }}! 🎉<br>Your benefits are now active.</div>
+      <div class="note">Billed {{ fee }}/month via PayPal. Cancel anytime.</div>
+      <div class="note" style="margin-top:10px;background:#fff7f0;border:1px solid #f6dcc4;border-radius:8px;padding:10px;text-align:left;color:#7a5a2a">
+        <b>Sandbox test mode — no real charge.</b><br>
+        Log in with a PayPal <b>sandbox personal account</b> (developer.paypal.com → Sandbox Accounts),
+        or choose <b>Debit/Credit Card</b> and use <code>4111 1111 1111 1111</code>, exp <code>12/30</code>, CVV <code>123</code>.
+      </div>
+    {% endif %}
+
+    <a class="back" href="{{ base }}/">&larr; Back to Console</a>
+  </div>
+</div>
+
+{% if not already and plan_id and paypal_client_id %}
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&vault=true&intent=subscription"></script>
+<script>
+const BASE = '{{ base }}';
+const PLAN_ID = '{{ plan_id }}';
+const SESSION = '{{ session }}';
+const IDENT   = '{{ identifier }}';
+
+paypal.Buttons({
+  style: { shape: 'pill', color: 'gold', layout: 'vertical', label: 'subscribe' },
+  createSubscription: function(data, actions){
+    return actions.subscription.create({ plan_id: PLAN_ID, custom_id: IDENT });
+  },
+  onApprove: async function(data){
+    try{
+      await fetch(`${BASE}/api/vip/subscribe/capture`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subscription_id: data.subscriptionID, session: SESSION })
+      });
+    }catch(e){ /* webhook/return is the backstop */ }
+    document.getElementById('paypal-button-container').style.display='none';
+    document.getElementById('success').style.display='block';
+  },
+  onError: function(err){ console.error(err); }
+}).render('#paypal-button-container');
+</script>
+{% endif %}
+</body>
+</html>

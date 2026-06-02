@@ -60,6 +60,25 @@
       <tr style="background:#f8f6f2"><td style="padding:8px;font-family:monospace">PLIVO_NUMBER</td><td style="padding:8px">Plivo Console → Phone Numbers (E.164 format, e.g. +14155551234)</td></tr>
     </table>
   </div>
+
+  <div class="card">
+    <h2>Payment Wallets</h2>
+    <div style="background:#f0faf0;border:1px solid #b2d8b2;border-radius:10px;padding:14px 16px;font-size:13px;color:#2a5a2a;margin-bottom:14px">
+      After a phone order completes, the caller is sent an SMS with a checkout link.
+      The checkout page renders <strong>PayPal Smart Buttons</strong> (PayPal account, Pay Later, and an inline Card field).
+    </div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <tr style="background:#f8f6f2"><th style="padding:8px;text-align:left">Variable</th><th style="padding:8px;text-align:left">Where to get it</th></tr>
+      <tr><td style="padding:8px;font-family:monospace">PAYPAL_CLIENT_ID</td><td style="padding:8px">developer.paypal.com → Apps &amp; Credentials → your app → Client ID</td></tr>
+      <tr style="background:#f8f6f2"><td style="padding:8px;font-family:monospace">PAYPAL_SECRET</td><td style="padding:8px">developer.paypal.com → Apps &amp; Credentials → your app → Secret</td></tr>
+      <tr><td style="padding:8px;font-family:monospace">PAYPAL_MODE</td><td style="padding:8px"><code>sandbox</code> for testing, <code>live</code> for production</td></tr>
+      <tr style="background:#f8f6f2"><td style="padding:8px;font-family:monospace">PUBLIC_BASE_URL</td><td style="padding:8px">Origin used in SMS links — default <code>https://support.hostbuddy.io/recsys</code></td></tr>
+    </table>
+    <p style="margin-top:12px;font-size:12px;color:#888">
+      Sandbox setup: visit <a href="https://developer.paypal.com/dashboard/applications/sandbox" target="_blank" style="color:#C8873A">developer.paypal.com</a>,
+      create a Merchant app, copy the Client ID and Secret into <code>.env</code>, then <code>sudo systemctl restart recsys</code>.
+    </p>
+  </div>
 </div>
 <script>function copy(v){navigator.clipboard.writeText(v).then(()=>alert('Copied!'))}</script>
 {% endblock %}

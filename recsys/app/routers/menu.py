@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db, Restaurant, Menu
 from app.services.pdf_parser import parse_menu_pdf as extract_menu
 from app.routers.plivo_hooks import bust_menu_cache
+from app.routers.voice_web import bust_web_menu_cache
+from app.services import menu_cache as svc_menu_cache
 import json, os, shutil
 
 router = APIRouter()
@@ -50,7 +52,9 @@ async def upload_menu(
         items_json=json.dumps(parsed['items'])
     )
     db.add(menu); db.commit()
-    bust_menu_cache(plivo_number)
+    bust_menu_cache(plivo_number)   # clears plivo_hooks cache
+    bust_web_menu_cache()           # clears voice_web cache
+    svc_menu_cache.invalidate(rest.id)  # clears menu_cache service cache
 
     return {"status": "ok", "restaurant_id": rest.id,
             "items_found": len(parsed['items']), "filename": file.filename}
