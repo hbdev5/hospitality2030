@@ -202,8 +202,12 @@ body {
     transition: height 0.08s linear;
 }
 
-/* Close (X) button to end the session */
+/* Close (X) button — pinned top-right of the voice panel (frees vertical space) */
 .close-button {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 5;
     background: transparent;
     border: 1px solid rgba(255,255,255,0.18);
     color: rgba(255,255,255,0.6);
@@ -217,11 +221,9 @@ body {
 }
 .close-button:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
 
-/* Status text below mic ("Listening…" / "Speaking…" / "Got it…") */
+/* Status text ("Listening…") removed — the top soundbar is the live indicator. */
 .status-stack {
-    margin-top: 28px;
-    text-align: center;
-    min-height: 70px;
+    display: none;
 }
 .status-line {
     font-size: 28px;
