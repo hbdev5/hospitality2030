@@ -362,6 +362,12 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
             return "I didn't catch a full number — what's your 10-digit mobile?", None
         cart.caller_phone = digits
         last4 = digits[-4:]
+        # If we asked for this number specifically to finalize the order (the
+        # complete_order phone gate set phone_prompted), finish RIGHT NOW so the
+        # SMS fires deterministically — don't depend on GPT to re-call the tool.
+        if cart.phone_prompted and cart.items:
+            print(f"[provide_phone] phone {last4} captured at checkout — auto-completing order")
+            return _dispatch("complete_order", {}, restaurant_id, menu_text, session_id, db)
         return (f"Great — I'll text your receipt and checkout link to the number ending {last4} "
                 f"when you're done."), None
 
@@ -408,6 +414,23 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
                 cart.current_item_name = it.name
                 return (f"Before I place that — your {it.name} needs a {g['name'].lower()}. "
                         f"Would you like {opts}?"), None
+
+        # ── Capture a receipt phone on kiosk/web orders (deterministic) ──────
+        # The phone channel already knows the caller's number (voice_ws sets
+        # cart.caller_phone on the Plivo start event), so the texted-link flow
+        # "just works" there. The KIOSK has no inherent number — so before we
+        # finalize a web/kiosk order with no phone on file, ask ONCE. The guest
+        # answering with a number hits provide_phone, which sets the phone and
+        # auto-calls complete_order again (this time the gate is satisfied →
+        # order saves + SMS fires). Saying "skip" lets GPT call complete_order
+        # again with phone_prompted already True → gate passes, no text.
+        # SMS-driven sessions ("sms-<phone>") already have the number → skip.
+        is_sms_session_gate = (session_id or "").startswith("sms-")
+        if (cart.items and not is_sms_session_gate
+                and not cart.caller_phone and not cart.phone_prompted):
+            cart.phone_prompted = True
+            return ("Sure! What's the best mobile number to text your receipt and pay link to? "
+                    "Or say 'skip' to finish without a text."), None
 
         # ── VIP per-visit benefits (honest + condition-aware) ────────────────
         # Active subscribers get: (1) their recurring free perk, and (2) a visit

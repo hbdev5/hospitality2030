@@ -56,6 +56,7 @@ class Cart:
     # I'm done with that / something else / different item".
     current_item_id: Optional[int] = None
     current_item_name: str = ""
+    phone_prompted: bool = False   # asked once for a receipt phone (kiosk/web)
 
     def touch(self):
         self.last_active = time.time()
@@ -206,6 +207,7 @@ class Cart:
         self.items = []
         self.current_item_id   = None
         self.current_item_name = ""
+        self.phone_prompted    = False
         self.touch()
 
     def summary(self) -> str:
