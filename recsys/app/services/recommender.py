@@ -415,22 +415,11 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
                 return (f"Before I place that — your {it.name} needs a {g['name'].lower()}. "
                         f"Would you like {opts}?"), None
 
-        # ── Capture a receipt phone on kiosk/web orders (deterministic) ──────
-        # The phone channel already knows the caller's number (voice_ws sets
-        # cart.caller_phone on the Plivo start event), so the texted-link flow
-        # "just works" there. The KIOSK has no inherent number — so before we
-        # finalize a web/kiosk order with no phone on file, ask ONCE. The guest
-        # answering with a number hits provide_phone, which sets the phone and
-        # auto-calls complete_order again (this time the gate is satisfied →
-        # order saves + SMS fires). Saying "skip" lets GPT call complete_order
-        # again with phone_prompted already True → gate passes, no text.
-        # SMS-driven sessions ("sms-<phone>") already have the number → skip.
-        is_sms_session_gate = (session_id or "").startswith("sms-")
-        if (cart.items and not is_sms_session_gate
-                and not cart.caller_phone and not cart.phone_prompted):
-            cart.phone_prompted = True
-            return ("Sure! What's the best mobile number to text your receipt and pay link to? "
-                    "Or say 'skip' to finish without a text."), None
+        # NOTE: kiosk/web orders do NOT ask for a phone number. A real kiosk
+        # has a payment terminal and reading a number aloud is awkward; the
+        # checkout page + on-screen Pay button is the flow there. The phone
+        # channel (voice_ws sets cart.caller_phone) and SMS sessions still get
+        # the link texted automatically because their number is already known.
 
         # ── VIP per-visit benefits (honest + condition-aware) ────────────────
         # Active subscribers get: (1) their recurring free perk, and (2) a visit
@@ -707,8 +696,8 @@ def get_recommendation(
         + "- get_modifier_options — only when the guest explicitly asks what the choices are.\n"
         + "- get_cart / complete_order / cancel_order — order management.\n"
         + "- subscribe_vip — call when the guest mentions VIP, membership, loyalty, or member perks. It returns the plan and a signup link; just read it back.\n"
-        + "- provide_phone — when the guest gives a phone number, call this to save it (the checkout link is then texted to them).\n"
-        + "RECEIPT BY TEXT: when the guest is ready to finish (or right before complete_order), if you don't have their number yet, ask once: 'Want your receipt texted? What's your mobile number?' If they give it, call provide_phone, then complete_order.\n"
+        + "- provide_phone — ONLY if the guest unprompted gives a phone number; otherwise never bring up phone/text.\n"
+        + "DO NOT ask for a phone number. This is a kiosk — when the guest is done, call complete_order and the payment options appear on screen.\n"
         + "MODIFIERS:\n"
         + "- `modifiers` is ONLY for additions or substitutions IN (e.g. 'Extra Cheese', 'Bacon').\n"
         + "- For 'no X' / 'without X' / 'hold the X' → use `special_instructions: \"no X\"`.\n"
