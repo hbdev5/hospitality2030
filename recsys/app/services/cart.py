@@ -65,6 +65,34 @@ class Cart:
             special_instructions: str = "", image_url: str = "") -> str:
         self.touch()
         modifiers = modifiers or []
+
+        # 0. CONFIGURING the current item → always merge into that one line.
+        # While a guest is building an item (current_item_id set), any add of the
+        # SAME item name updates it — even if the model sends only the new modifier
+        # this turn (not the cumulative list). This is the decisive fix for "added
+        # Slam Burger twice": non-cumulative modifier adds no longer spawn dupes.
+        # (Java parity: all configuration routes to currentInventoryId.)
+        if qty <= 1 and self.current_item_id is not None:
+            cur = self.find_item_by_id(self.current_item_id)
+            if cur and cur.name.lower() == name.lower() and cur.size.lower() == size.lower():
+                seen = {m.lower(): m for m in cur.modifiers}
+                added = []
+                for m in modifiers:
+                    if m and m.lower() not in seen:
+                        seen[m.lower()] = m
+                        cur.modifiers.append(m)
+                        added.append(m)
+                if special_instructions and special_instructions not in (cur.special_instructions or ""):
+                    cur.special_instructions = (
+                        f"{cur.special_instructions}, {special_instructions}".strip(", ")
+                        if cur.special_instructions else special_instructions)
+                if image_url and not cur.image_url:
+                    cur.image_url = image_url
+                self.current_item_name = cur.name
+                if added:
+                    return f"Updated {cur.name} — now with {', '.join(cur.modifiers)}."
+                return f"{cur.name} is already in your order."
+
         # Exact match (name + modifiers + size) → bump quantity
         key = (name.lower(), tuple(sorted(modifiers)), size.lower())
         for item in self.items:

@@ -156,6 +156,24 @@ _TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "provide_phone",
+            "description": (
+                "Save the guest's mobile number so the checkout link + receipt can be TEXTED "
+                "to them. Call this when the guest gives a phone number (e.g. 'text it to "
+                "five five five, one two three, four five six seven')."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "phone": {"type": "string", "description": "The guest's phone number, digits as heard"}
+                },
+                "required": ["phone"],
+            },
+        },
+    },
 ]
 
 
@@ -337,6 +355,15 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
         # Java pattern: return cart summary so GPT sees what's actually in the cart
         # after the add — prevents duplicate items and helps with state tracking.
         return f"{add_msg} Current cart: {cart.summary()}", None
+
+    if fn == "provide_phone":
+        digits = "".join(c for c in (args.get("phone") or "") if c.isdigit())
+        if len(digits) < 10:
+            return "I didn't catch a full number — what's your 10-digit mobile?", None
+        cart.caller_phone = digits
+        last4 = digits[-4:]
+        return (f"Great — I'll text your receipt and checkout link to the number ending {last4} "
+                f"when you're done."), None
 
     if fn == "remove_from_cart":
         return cart.remove(args.get("item_name", "")), None
@@ -644,8 +671,9 @@ def get_recommendation(
         + "- A PHOTO of the item is shown to the guest, so be VIVID & APPETIZING: add one short sensory detail to entice (e.g. 'a velvety oat-milk latte', 'a juicy char-grilled burger', 'crisp golden fries'). Keep it within the word limit.\n"
         + "- DO NOT read the raw description verbatim (e.g. don't say 'featuring double patty, cheese and bacon').\n"
         + "- Instead, frame around what's CONFIGURABLE. Use the 'Customizable:' line from get_item_details.\n"
-        + "- Example: 'The Slam Burger is $10.50 — comes with sides and a choice of protein. Would you like one?'\n"
-        + "- After adding the main item: PROACTIVELY mention sides. Example: 'Got it. It comes with sides — would you like fries, onion rings, or sweet potato fries?'\n"
+        + "- NEVER invent inclusions or add-ons. ONLY mention sides/options/'comes with' that actually appear in get_item_details ('Customizable:'/'Available options') or the CART STATE config block for THAT item. If an item has no option groups, do NOT claim it comes with anything (e.g. a pizza with no Sides group does NOT 'come with fries').\n"
+        + "- Example (item WITH options): 'The Slam Burger is $10.50 — comes with a choice of sides and protein. Would you like one?'\n"
+        + "- After adding an item that HAS option groups, proactively offer ONE real group from its options. If it has NO option groups, just confirm and ask 'Anything else?'\n"
         + "- After they pick a side, confirm + ask 'anything else?'\n"
         + "TOOLS — prefer ONE tool per turn for speed, but you MAY call add_to_cart right after a lookup in the SAME turn.\n"
         + "ORDER INTENT (critical): when the guest NAMES an item to order ('I'll take a slam burger', 'I want…', 'give me…', 'add…'), you MUST call add_to_cart THIS turn. Saying 'Got it' WITHOUT calling add_to_cart loses the order — never do that.\n"
@@ -656,6 +684,8 @@ def get_recommendation(
         + "- get_modifier_options — only when the guest explicitly asks what the choices are.\n"
         + "- get_cart / complete_order / cancel_order — order management.\n"
         + "- subscribe_vip — call when the guest mentions VIP, membership, loyalty, or member perks. It returns the plan and a signup link; just read it back.\n"
+        + "- provide_phone — when the guest gives a phone number, call this to save it (the checkout link is then texted to them).\n"
+        + "RECEIPT BY TEXT: when the guest is ready to finish (or right before complete_order), if you don't have their number yet, ask once: 'Want your receipt texted? What's your mobile number?' If they give it, call provide_phone, then complete_order.\n"
         + "MODIFIERS:\n"
         + "- `modifiers` is ONLY for additions or substitutions IN (e.g. 'Extra Cheese', 'Bacon').\n"
         + "- For 'no X' / 'without X' / 'hold the X' → use `special_instructions: \"no X\"`.\n"
