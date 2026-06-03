@@ -95,7 +95,7 @@ def _transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm") -> t
 async def web_voice_greet():
     rest, _ = _load_menu()
     name     = rest.name if rest else "our hotel"
-    greeting = f"Welcome to {name}. I'm Alex, your voice concierge. How can I help you today?"
+    greeting = f"Welcome to {name}, how can I help you today?"
     audio_url = text_to_speech(greeting) or ""
     return JSONResponse({"greeting": greeting, "audio_url": audio_url})
 
