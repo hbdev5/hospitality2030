@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ c.restaurant or "Curry Bliss" }} Muse</title></head>
+<body style="margin:0;padding:0;background-color:#F7F4F0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1C1B19;">
+<div style="background:#fff7ea;border-bottom:1px solid #f0e0c0;color:#9a6a00;font-size:12px;text-align:center;padding:6px">PREVIEW — Magazine style · what your VIP subscribers receive</div>
+<div style="padding:20px">
+<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:550px;background:#FFFFFF;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.03);">
+  <tr><td style="padding:30px 40px 20px;">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
+      <td><span style="font-family:Georgia,serif;font-size:22px;font-style:italic;font-weight:bold;color:#2D2A26;">{{ (c.restaurant or "curry bliss")|lower }}.</span></td>
+      <td align="right" style="vertical-align:middle;"><span style="font-size:11px;font-weight:600;letter-spacing:1px;color:#A69F95;text-transform:uppercase;">Week of {{ c.week_of }}</span></td>
+    </tr></table>
+  </td></tr>
+  {% if c.featured %}
+  <tr><td style="padding:0 30px;"><img src="{{ c.featured.img }}" alt="{{ c.featured.title }}" width="100%" style="height:340px;object-fit:cover;border-radius:12px;display:block;"></td></tr>
+  <tr><td style="padding:30px 40px 35px;">
+    <span style="font-size:12px;font-weight:700;color:#C47B62;letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-bottom:8px;">The Weekly Muse</span>
+    <h2 style="margin:0 0 12px;font-family:Georgia,serif;font-size:28px;font-weight:400;line-height:1.2;color:#2D2A26;">{{ c.featured.title }}</h2>
+    <p style="margin:0 0 25px;font-size:15px;color:#6E685E;line-height:1.6;font-weight:300;">{{ c.featured.description }}</p>
+    <table border="0" cellpadding="0" cellspacing="0"><tr><td style="background:#2D2A26;border-radius:24px;">
+      <a href="#" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#fff;text-decoration:none;">
+      {% if c.featured.now %}Unlock VIP Value — ${{ c.featured.now }}{% else %}{{ c.featured.offer }}{% endif %}</a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:0 40px 40px;">
+    <p style="margin:0 0 20px;font-size:12px;font-weight:700;letter-spacing:1.5px;color:#2D2A26;text-transform:uppercase;border-bottom:1px solid #F0ECE6;padding-bottom:10px;">On the Menu This Week</p>
+    {% for row in c.secondary|batch(2) %}
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;"><tr>
+      {% for s in row %}
+      <td width="48%" valign="top">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0">
+          <tr><td><img src="{{ s.img }}" width="100%" height="140" style="object-fit:cover;border-radius:8px;display:block;" alt="{{ s.title }}"></td></tr>
+          <tr><td style="padding:12px 4px 0;">
+            <h4 style="margin:0;font-size:14px;font-weight:600;color:#2D2A26;">{{ s.title }}</h4>
+            <p style="margin:3px 0 0;font-size:13px;color:#C47B62;font-weight:600;">{{ s.offer }}</p>
+          </td></tr>
+        </table>
+      </td>
+      {% if not loop.last %}<td width="4%">&nbsp;</td>{% endif %}
+      {% endfor %}
+    </tr></table>
+    {% endfor %}
+  </td></tr>
+  {% else %}
+  <tr><td style="padding:40px;text-align:center;color:#888">No campaign yet — generate one in the Marketing Studio.</td></tr>
+  {% endif %}
+</table>
+</div>
+</body></html>

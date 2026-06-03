@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oak & Ivy — AI Studio Console</title>
+<style>
+  :root{ --blue:#2563EB; --green:#16a34a; --ink:#1f2430; --bg:#eef2f8; --line:#e6eaf1; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .grid{max-width:1360px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1fr 470px;gap:16px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+
+  .console{display:flex;flex-direction:column;min-height:86vh}
+  .topbar{background:var(--blue);color:#fff;border-radius:14px 14px 0 0;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
+  .topbar h1{margin:0;font-size:20px;font-weight:700}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:13px}
+  .toggle b{font-weight:700}
+  .sw{width:46px;height:24px;background:#9bbcff;border-radius:20px;position:relative;cursor:pointer;transition:.2s}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
+  .sw.admin{background:#f0a020}.sw.admin::after{left:24px}
+  .chatarea{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;min-height:220px}
+  .msg{max-width:82%;padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}
+  .msg.bot{align-self:flex-start;background:#f1f3f8}
+  .msg.user{align-self:flex-end;background:var(--blue);color:#fff}
+  .msg a{color:inherit;text-decoration:underline}
+  .inputrow{display:flex;gap:10px;padding:14px 20px}
+  .inputrow input{flex:1;border:1px solid var(--line);border-radius:24px;padding:13px 18px;font-size:15px;outline:none}
+  .iconbtn{width:46px;height:46px;border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .mic{background:var(--green)} .sendb{background:var(--blue)}
+  .iconbtn svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  .agents{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:8px 20px 22px}
+  .agent{border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;background:#fff;text-decoration:none;color:var(--ink);transition:.15s;position:relative}
+  .agent:hover{border-color:var(--blue);transform:translateY(-2px)}
+  .agent .ic{height:36px;display:flex;align-items:center;justify-content:center}
+  .agent .ic svg{width:34px;height:34px;fill:none;stroke:#1f2430;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .agent .ic img{width:34px;height:34px;object-fit:contain;border-radius:6px}
+  /* Big standout image icons (SRM, Vision) — fill the card */
+  .agent.bigicon{padding:8px}
+  .agent.bigicon .ic{height:auto}
+  .agent.bigicon .ic img{width:100%;height:auto;border-radius:12px}
+  .agent .nm{font-size:12px;margin-top:8px;font-weight:600}
+  .agent.soon{opacity:1}            /* no dimming */
+  .agent .tag{display:none}         /* no LIVE/SOON chips */
+
+  .right{display:flex;flex-direction:column;gap:16px}
+  .tabs{display:flex;gap:18px;padding:14px 18px 0;font-size:14px}
+  .tabs span{padding-bottom:10px;color:#8a93a6;cursor:pointer;border-bottom:2px solid transparent}
+  .tabs span.act{color:var(--blue);border-color:var(--blue);font-weight:600}
+  .pad{padding:16px 18px 18px}
+  .log{margin:10px 18px 16px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;height:170px;overflow-y:auto;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#5a6172;line-height:1.7}
+  .log .g{color:var(--green)}
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .stat{padding:14px}.stat .big{font-size:24px;font-weight:800}.stat .lbl{font-size:12px;color:#8a93a6}.stat .delta{font-size:11px;color:var(--green);margin-top:14px}
+  .perf{padding:16px 18px}.perf h3{margin:0 0 10px;font-size:15px}.perf .row{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+
+  /* VIP card + editor */
+  .cardwrap{text-align:center;margin-bottom:14px}
+  .cardwrap img{max-width:100%;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+  .ed{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ed label{font-size:11px;color:#8a93a6;display:block;margin-bottom:3px;font-weight:600;letter-spacing:.3px}
+  .ed .full{grid-column:1/-1}
+  .ed input[type=text],.ed input[type=number]{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;outline:none}
+  .ed input[type=color]{width:100%;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+  .ed .filebtn{font-size:12px}
+  .subbox{text-align:center}
+  .subbox .price{font-size:22px;font-weight:800;margin:6px 0 2px}
+  .subbox .ben{color:#8a93a6;font-size:13px;margin-bottom:12px}
+  #paypalSub{min-height:46px}
+  .okmsg{background:#e9f9ef;border:1px solid #b6e6c8;color:#1f7a44;border-radius:10px;padding:14px;font-weight:600;text-align:center}
+  .hide{display:none}
+  @media(max-width:1080px){.grid{grid-template-columns:1fr}.agents{grid-template-columns:repeat(3,1fr)}.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="grid">
+
+  <!-- LEFT: console -->
+  <div class="card console">
+    <div class="topbar">
+      <h1>Console v2.0</h1>
+      <div class="toggle"><b id="lblUser">User</b><div class="sw" id="modeSw"></div><b id="lblAdmin" style="opacity:.6">Admin</b></div>
+    </div>
+
+    <div class="chatarea" id="chat">
+      <div class="msg bot" id="greet">Hello! How can I help with your order today? (Now with Vision &amp; AI) — try typing <b>VIP</b>.</div>
+    </div>
+
+    <div class="inputrow">
+      <input id="box" placeholder="Type your message..." autocomplete="off">
+      <button class="iconbtn mic" title="Kiosk (voice)" onclick="location.href='{{ base }}/kiosk'"><svg viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 10.5a7 7 0 0 0 14 0"/><line x1="12" y1="17.5" x2="12" y2="21"/></svg></button>
+      <button class="iconbtn sendb" id="send" title="Send"><svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></button>
+    </div>
+
+    <div class="agents">
+      <a class="agent live" href="{{ base }}/text"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="7" y1="8.5" x2="17" y2="8.5"/><line x1="7" y1="12" x2="13" y2="12"/></svg></div><div class="nm">Text to Order</div></a>
+      <a class="agent live" href="tel:{{ plivo_number }}"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.3"/><path d="M3.5 20c0-3.3 2.4-5.5 5.5-5.5s5.5 2.2 5.5 5.5"/><path d="M16.5 7.5c1.3 1.3 1.3 3.7 0 5"/><path d="M18.8 5.5c2.1 2.1 2.1 6.9 0 9"/></svg></div><div class="nm">Phone Order</div></a>
+      <a class="agent live" href="{{ base }}/kiosk"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="12" rx="1.5"/><line x1="7" y1="6.5" x2="13" y2="6.5"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg></div><div class="nm">Kiosk Order</div></a>
+      <a class="agent soon" href="#" data-soon="Drive Through"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="12" height="11" rx="1.5"/><line x1="6" y1="10" x2="11" y2="10"/><line x1="6" y1="13" x2="9" y2="13"/><path d="M14.5 11.5h6M17.5 8.5l3 3-3 3"/></svg></div><div class="nm">Drive Through</div></a>
+      <a class="agent live bigicon" href="{{ base }}/srm"><div class="ic"><img src="{{ base }}/static/icons/srm.png" alt="SRM"></div><div class="nm">Auto Marketing</div></a>
+
+      <a class="agent bigicon" href="#"><div class="ic"><img src="{{ base }}/static/icons/vision-intelligence.png" alt="Vision"></div><div class="nm">Vision Intelligence</div></a>
+      <a class="agent soon" href="#" data-soon="POS Connect"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><ellipse cx="5.5" cy="6" rx="3" ry="1.5"/><path d="M2.5 6v9c0 .8 1.3 1.5 3 1.5s3-.7 3-1.5V6"/><ellipse cx="18.5" cy="6" rx="3" ry="1.5"/><path d="M15.5 6v9c0 .8 1.3 1.5 3 1.5s3-.7 3-1.5V6"/><path d="M13.5 9.5 15.5 11l-2 1.5M10.5 11.5l-2 1.5 2 1.5"/></svg></div><div class="nm">POS Connect</div></a>
+      <a class="agent soon" href="#" data-soon="Performance IQ"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.6A2.8 2.8 0 0 0 6 18.5a3 3 0 0 0 3-1.2V4.5z"/><path d="M15 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.6A2.8 2.8 0 0 1 18 18.5a3 3 0 0 1-3-1.2V4.5z"/><path d="M12 21.5v-7M10 16.5l2-2 2 2"/></svg></div><div class="nm">Performance IQ</div></a>
+      <a class="agent soon" href="#" data-soon="Multi-Modal AI"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><rect x="5.5" y="3" width="5" height="9" rx="2.5"/><path d="M3 10a5 5 0 0 0 10 0"/><line x1="8" y1="15" x2="8" y2="18"/><path d="M13.5 16c1.7-2.2 4.8-2.2 6.5 0-1.7 2.2-4.8 2.2-6.5 0z"/><circle cx="16.75" cy="16" r="1"/></svg></div><div class="nm">Multi-Modal AI</div></a>
+      <a class="agent live" href="tel:{{ plivo_number }}"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><path d="M6.5 3h-3a1 1 0 0 0-1 1.1A17 17 0 0 0 19.9 21.5a1 1 0 0 0 1.1-1v-3a1 1 0 0 0-.8-1l-3.3-.7a1 1 0 0 0-1 .3l-1.2 1.2a14 14 0 0 1-5.9-5.9l1.2-1.2a1 1 0 0 0 .3-1l-.7-3.3a1 1 0 0 0-1-.8z"/></svg></div><div class="nm">{{ plivo_number }}</div></a>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="card right" style="align-self:flex-start">
+    <div class="tabs">
+      <span class="act" data-tab="system">System</span>
+      <span data-tab="loyalty">Loyalty</span>
+      <span data-tab="config">Configuration</span>
+    </div>
+
+    <!-- SYSTEM TAB -->
+    <div id="tabSystem">
+      <div class="log">
+        <div><span class="g">[14:02:15]</span> Vision models loaded successfully</div>
+        <div><span class="g">[14:02:16]</span> POS proxies connected to every terminal</div>
+        <div><span class="g">[14:02:17]</span> Performance IQ activated</div>
+        <div><span class="g">[13:36:21]</span> System initialized and ready</div>
+        <div><span class="g">[13:36:21]</span> Browser detected: Chrome 148</div>
+        <div>Voice recognition engine loaded · Waiting for user input...</div>
+        <div>MerchantBot Voice Integration initialized · Voice recording ready</div>
+      </div>
+      <div class="pad stats">
+        <div class="card stat"><div class="big">50K</div><div class="lbl">Active Users</div><div class="delta">32K from last month</div></div>
+        <div class="card stat"><div class="big">500K</div><div class="lbl">Monthly Revenue</div><div class="delta">15.8% from last month</div></div>
+        <div class="card stat"><div class="lbl">Vision Accuracy</div><div class="big">99.2%</div><div class="delta">0.3% from last month</div></div>
+      </div>
+      <div class="perf">
+        <h3>Agent Performance (w/ Performance IQ)</h3>
+        <div class="row"><span>Transactions</span><b>1,310</b></div>
+        <div class="row"><span>Avg. Processing Time</span><b>0.9s</b></div>
+        <div class="row"><span>Success Rate</span><b>99.1%</b></div>
+        <div class="row"><span>Vision Recognition Rate</span><b>99.2%</b></div>
+      </div>
+    </div>
+
+    <!-- LOYALTY TAB -->
+    <div id="tabLoyalty" class="pad hide">
+      <div class="cardwrap">
+        <iframe id="cardFrame" src="{{ base }}/vip/preview" style="width:100%;height:660px;border:none;border-radius:12px;background:#0a0a0a"></iframe>
+        <div style="margin-top:6px"><a href="{{ base }}/vip/preview" target="_blank" style="color:var(--blue);font-size:13px">↗ Open full card preview</a></div>
+      </div>
+
+      <!-- ADMIN: visual editor -->
+      <div id="vipAdmin" class="hide">
+        <div style="background:#f1f3f8;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
+          <div style="color:#8a93a6;font-weight:600;letter-spacing:.3px;margin-bottom:4px">CUSTOMER SIGNUP LINK</div>
+          <a id="joinLink" href="#" target="_blank" style="color:var(--blue);word-break:break-all">—</a>
+          <div style="color:#9aa1b1;margin-top:3px">Share this, or customers text <b>VIP</b> to your number.</div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
+            <a id="previewLink" href="#" target="_blank" style="color:var(--blue);font-weight:600">↗ Open full card preview</a>
+            <span style="color:#9aa1b1"> — test before going live</span>
+          </div>
+          <div style="margin-top:6px">
+            <a href="{{ base }}/srm" target="_blank" style="color:var(--blue);font-weight:600">📣 Weekly Marketing Studio</a>
+            <span style="color:#9aa1b1"> — menu-driven VIP email campaigns</span>
+          </div>
+        </div>
+        <div class="ed">
+          <div class="full"><label>Card Title</label><input type="text" id="f_title"></div>
+          <div class="full"><label>Subtitle / tagline</label><input type="text" id="f_subtitle"></div>
+          <div class="full"><label>Benefit 1</label><input type="text" id="f_benefit"></div>
+          <div class="full"><label>Benefit 2</label><input type="text" id="f_benefit2"></div>
+          <div class="full"><label>Benefit 3</label><input type="text" id="f_benefit3"></div>
+          <div><label>Price ($/month)</label><input type="number" id="f_price" step="0.5" min="0"></div>
+          <div><label>Visit discount (%)</label><input type="number" id="f_disc" step="1" min="0"></div>
+          <div><label>Accent color</label><input type="color" id="f_accent"></div>
+          <div><label>Background color</label><input type="color" id="f_bg"></div>
+          <div class="full"><label>Website (on card)</label><input type="text" id="f_website" placeholder="currybliss.com"></div>
+          <div class="full"><label>Logo</label><input class="filebtn" type="file" id="f_logo" accept="image/*"></div>
+        </div>
+      </div>
+
+      <!-- USER: subscribe -->
+      <div id="vipUser" class="hide subbox">
+        <div class="price" id="u_price">$5/month</div>
+        <div class="ben" id="u_ben">Free drink or chips every visit</div>
+        <div id="paypalSub"></div>
+        <div style="font-size:11px;color:#9aa1b1;margin-top:10px;text-align:left;background:#fff7f0;border:1px solid #f6dcc4;border-radius:8px;padding:9px;line-height:1.5">
+          <b style="color:#7a5a2a">Sandbox — no real charge.</b> Log in with a PayPal sandbox personal account, or use card <b>4111 1111 1111 1111</b>, exp 12/30, CVV 123.
+        </div>
+        <div id="subOk" class="okmsg hide">Welcome to VIP! 🎉 Your benefits are now active.</div>
+      </div>
+    </div>
+
+    <!-- CONFIG TAB -->
+    <div id="tabConfig" class="pad hide">
+      <p style="color:#5a6172;font-size:14px">Plivo number: <b>{{ plivo_number }}</b><br>
+      Voice / SMS webhooks configured. VIP plan + card managed under the Loyalty tab (Admin mode).</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = '{{ base }}';
+const SESSION = 'studio-' + Math.random().toString(36).slice(2, 10);
+let mode = 'user';
+let cfg  = null;
+let paypalLoaded = false;
+
+const chat = document.getElementById('chat'), box = document.getElementById('box'), send = document.getElementById('send');
+const linkify = t => t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
+function add(text, who){ const d=document.createElement('div'); d.className='msg '+who;
+  d.innerHTML = who==='bot' ? linkify(text) : text.replace(/</g,'&lt;'); chat.appendChild(d); chat.scrollTop=chat.scrollHeight; }
+
+// ── tabs ──
+document.querySelectorAll('.tabs span').forEach(s => s.onclick = () => showTab(s.dataset.tab));
+function showTab(t){
+  document.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('act', x.dataset.tab===t));
+  document.getElementById('tabSystem').classList.toggle('hide', t!=='system');
+  document.getElementById('tabLoyalty').classList.toggle('hide', t!=='loyalty');
+  document.getElementById('tabConfig').classList.toggle('hide', t!=='config');
+}
+
+// ── mode toggle ──
+const sw = document.getElementById('modeSw');
+sw.onclick = () => setMode(mode==='user' ? 'admin' : 'user');
+function setMode(m){
+  mode = m;
+  sw.classList.toggle('admin', m==='admin');
+  document.getElementById('lblAdmin').style.opacity = m==='admin' ? 1 : .6;
+  document.getElementById('lblUser').style.opacity  = m==='user'  ? 1 : .6;
+  document.getElementById('vipAdmin').classList.toggle('hide', m!=='admin');
+  document.getElementById('vipUser').classList.toggle('hide', m!=='user');
+  if(m==='admin'){
+    box.placeholder = 'e.g. set up a VIP plan, $5/month for chips or a drink for every entree';
+    document.getElementById('greet').innerHTML = 'Admin mode — describe your VIP plan and I’ll build the card. Try: <b>"set up a VIP plan, $5/month for chips or a drink for every entree purchased"</b>.';
+    showTab('loyalty');
+  } else {
+    box.placeholder = 'Type your message...';
+    if(cfg) renderSubscribe();
+  }
+}
+
+// ── chat submit ──
+async function submit(){
+  const t = box.value.trim(); if(!t) return;
+  add(t,'user'); box.value=''; send.disabled=true;
+  try{
+    if(mode==='admin'){
+      const r = await fetch(`${BASE}/api/admin/vip/setup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})});
+      const d = await r.json();
+      add(d.reply || 'Updated.', 'bot');
+      if(d.config){ cfg = Object.assign(cfg||{}, d.config); fillEditor(); }
+      if(d.card_url) bumpCard(d.card_url);
+      showTab('loyalty');
+    } else {
+      const r = await fetch(`${BASE}/api/text/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t,session_id:SESSION})});
+      const d = await r.json(); add(d.reply || '…','bot');
+    }
+  }catch(e){ add('Sorry, something went wrong.','bot'); }
+  send.disabled=false; box.focus();
+}
+send.onclick = submit;
+box.addEventListener('keydown', e => { if(e.key==='Enter') submit(); });
+document.querySelectorAll('.agent.soon').forEach(a => a.addEventListener('click', e => { e.preventDefault(); alert(a.dataset.soon + ' — coming soon.'); }));
+
+// ── card + editor ──
+function bumpCard(url){ const f=document.getElementById('cardFrame'); if(f) f.src = '{{ base }}/vip/preview?t=' + Date.now(); }
+function fillEditor(){
+  if(!cfg) return;
+  document.getElementById('f_title').value    = cfg.card_title || '';
+  document.getElementById('f_subtitle').value = cfg.card_subtitle || '';
+  document.getElementById('f_benefit').value  = cfg.recurring_benefit || '';
+  document.getElementById('f_benefit2').value = cfg.benefit2 || '';
+  document.getElementById('f_benefit3').value = cfg.benefit3 || '';
+  document.getElementById('f_price').value    = ((cfg.monthly_fee_cents||0)/100);
+  document.getElementById('f_disc').value     = cfg.visit_discount_percent || 0;
+  document.getElementById('f_accent').value   = cfg.accent_color || '#C5A03C';
+  document.getElementById('f_bg').value       = cfg.bg_color || '#121212';
+  document.getElementById('f_website').value  = cfg.card_website || '';
+  if (cfg.join_url) {
+    const jl = document.getElementById('joinLink');
+    jl.href = cfg.join_url; jl.textContent = cfg.join_url;
+  }
+  if (cfg.preview_url) document.getElementById('previewLink').href = cfg.preview_url;
+}
+let cardTimer=null;
+function pushCard(){
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(async () => {
+    const payload = {
+      card_title:        document.getElementById('f_title').value,
+      card_subtitle:     document.getElementById('f_subtitle').value,
+      recurring_benefit: document.getElementById('f_benefit').value,
+      benefit2:          document.getElementById('f_benefit2').value,
+      benefit3:          document.getElementById('f_benefit3').value,
+      monthly_fee_cents: Math.round(parseFloat(document.getElementById('f_price').value||'0')*100),
+      visit_discount_percent: parseFloat(document.getElementById('f_disc').value||'0'),
+      accent_color:      document.getElementById('f_accent').value,
+      bg_color:          document.getElementById('f_bg').value,
+      card_website:      document.getElementById('f_website').value,
+    };
+    const r = await fetch(`${BASE}/api/admin/vip/card`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d = await r.json();
+    if(d.config){ cfg = Object.assign(cfg||{}, d.config); }
+    if(d.card_url) bumpCard(d.card_url);
+  }, 500);
+}
+['f_title','f_subtitle','f_benefit','f_benefit2','f_benefit3','f_price','f_disc','f_accent','f_bg','f_website']
+  .forEach(id => document.getElementById(id).addEventListener('input', pushCard));
+document.getElementById('f_logo').addEventListener('change', async e => {
+  if(!e.target.files[0]) return;
+  const fd = new FormData(); fd.append('file', e.target.files[0]);
+  const r = await fetch(`${BASE}/api/admin/vip/logo`,{method:'POST',body:fd});
+  const d = await r.json(); if(d.card_url) bumpCard(d.card_url);
+});
+
+// ── consumer subscribe ──
+function renderSubscribe(){
+  if(!cfg) return;
+  document.getElementById('u_price').textContent = (cfg.fee || '$5') + '/month';
+  document.getElementById('u_ben').textContent   = cfg.recurring_benefit || '';
+  if(!cfg.plan_id || !cfg.paypal_client_id){ document.getElementById('paypalSub').innerHTML='<small style="color:#9aa1b1">PayPal setup pending.</small>'; return; }
+  if(paypalLoaded){ drawButtons(); return; }
+  const s = document.createElement('script');
+  s.src = `https://www.paypal.com/sdk/js?client-id=${cfg.paypal_client_id}&vault=true&intent=subscription`;
+  s.onload = () => { paypalLoaded = true; drawButtons(); };
+  document.head.appendChild(s);
+}
+function drawButtons(){
+  const c = document.getElementById('paypalSub'); c.innerHTML='';
+  if(!window.paypal) return;
+  paypal.Buttons({
+    style:{shape:'pill',color:'gold',layout:'vertical',label:'subscribe'},
+    createSubscription:(data,actions)=>actions.subscription.create({plan_id:cfg.plan_id, custom_id:SESSION}),
+    onApprove:async(data)=>{
+      try{
+        const r = await fetch(`${BASE}/api/vip/subscribe/capture`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription_id:data.subscriptionID, session:SESSION})});
+        const d = await r.json();
+        if(d.card_url) bumpCard(d.card_url);
+      }catch(e){}
+      c.classList.add('hide'); document.getElementById('subOk').classList.remove('hide');
+      add('You’re now a VIP member — your benefits apply on every order this session.', 'bot');
+    }
+  }).render('#paypalSub');
+}
+
+// ── init ──
+fetch(`${BASE}/api/vip/config`).then(r=>r.json()).then(d=>{
+  cfg = d; fillEditor();
+  if(d.card_url) bumpCard(d.card_url);
+  renderSubscribe();
+}).catch(()=>{});
+box.focus();
+</script>
+</body>
+</html>

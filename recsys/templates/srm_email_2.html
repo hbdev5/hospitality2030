@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ c.restaurant or "Curry Bliss" }} Perks</title></head>
+<body style="margin:0;padding:0;background-color:#F8F9FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#212529;">
+<div style="background:#fff7ea;border-bottom:1px solid #f0e0c0;color:#9a6a00;font-size:12px;text-align:center;padding:6px">PREVIEW — Card-grid style · what your VIP subscribers receive</div>
+<div style="padding:20px">
+<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#FFFFFF;margin:0 auto;box-shadow:0 4px 12px rgba(0,0,0,.05);border-radius:12px;overflow:hidden;">
+  <tr><td style="padding:30px;background:#1A2536;text-align:center;">
+    <span style="color:#fff;font-size:20px;font-weight:800;letter-spacing:3px;">{{ c.restaurant or "Curry Bliss" }}</span>
+    <div style="width:30px;height:2px;background:#E63946;margin:12px auto 0;"></div>
+  </td></tr>
+  {% if c.featured %}
+  <tr><td style="padding:30px 30px 10px;text-align:center;">
+    <span style="font-size:12px;font-weight:700;color:#E63946;letter-spacing:2px;text-transform:uppercase;">Your Weekly VIP Picks</span>
+    <h2 style="font-size:22px;margin:8px 0 0;color:#1A2536;font-weight:700;">Curated Offers for {{ c.week_of }}</h2>
+  </td></tr>
+  <tr><td style="padding:20px 30px 30px;">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#F1FAEE;border-radius:8px;overflow:hidden;"><tr>
+      <td width="45%" valign="top" style="line-height:0;"><img src="{{ c.featured.img }}" alt="{{ c.featured.title }}" width="100%" style="height:220px;object-fit:cover;display:block;"></td>
+      <td width="55%" valign="middle" style="padding:25px;box-sizing:border-box;">
+        <span style="display:inline-block;background:#E63946;color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Top Feature</span>
+        <h3 style="margin:0;font-size:20px;color:#1A2536;font-weight:700;">{{ c.featured.title }}</h3>
+        <p style="margin:6px 0 15px;font-size:13px;color:#4A5568;line-height:1.4;">{{ c.featured.description }}</p>
+        {% if c.featured.now %}
+        <p style="margin:0;font-size:14px;color:#1A2536;"><strong style="font-size:20px;color:#E63946;">${{ c.featured.now }}</strong> <span style="text-decoration:line-through;color:#718096;margin-left:5px;">${{ c.featured.was }}</span></p>
+        {% else %}<p style="margin:0;font-size:15px;font-weight:700;color:#E63946;">{{ c.featured.offer }}</p>{% endif %}
+      </td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:0 30px 15px;"><h4 style="margin:0;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#718096;border-bottom:2px solid #EDF2F7;padding-bottom:8px;">More Dining Exclusives</h4></td></tr>
+  <tr><td style="padding:0 20px 40px;">
+    {% for row in c.secondary|batch(3) %}
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:10px;"><tr>
+      {% for s in row %}
+      <td width="33.33%" style="padding:0 10px;" valign="top">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:6px;overflow:hidden;text-align:center;">
+          <tr><td><img src="{{ s.img }}" width="100%" height="110" style="object-fit:cover;display:block;" alt="{{ s.title }}"></td></tr>
+          <tr><td style="padding:12px 8px;">
+            <h5 style="margin:0;font-size:14px;color:#1A2536;font-weight:600;">{{ s.title }}</h5>
+            <p style="margin:5px 0 0;font-size:13px;font-weight:700;color:{{ '#2A9D8F' if 'FREE' in s.badge else '#E63946' }};text-transform:uppercase;">{{ s.badge }}</p>
+          </td></tr>
+        </table>
+      </td>
+      {% endfor %}
+    </tr></table>
+    {% endfor %}
+  </td></tr>
+  {% else %}
+  <tr><td style="padding:40px;text-align:center;color:#888">No campaign yet — generate one in the Marketing Studio.</td></tr>
+  {% endif %}
+</table>
+</div>
+</body></html>

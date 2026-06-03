@@ -11,11 +11,30 @@ Latency optimisations:
 """
 
 from fastapi import APIRouter, Request, Depends, BackgroundTasks
-from types import SimpleNamespace
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
+from types import SimpleNamespace
 from app.database import get_db, SessionLocal, CallLog, Menu, Restaurant
 from app.services.recommender import get_recommendation
+from app.services import cart as cart_svc
+
+# SMS conversation history — keyed by caller phone. Same per-session pattern as
+# voice_web. 30-min eviction keeps it bounded.
+_sms_history: dict = {}        # caller → list[{role,content}]
+_sms_history_seen: dict = {}   # caller → last_active_ts
+
+def _sms_session_id(caller: str) -> str:
+    """Session ID for SMS-driven conversations. Same caller across calls reuses
+    the same session_id so cart + history persist across messages."""
+    return f"sms-{caller}"
+
+def _gc_sms_history():
+    import time as _t
+    now = _t.time()
+    stale = [c for c, ts in _sms_history_seen.items() if now - ts > 1800]
+    for c in stale:
+        _sms_history.pop(c, None)
+        _sms_history_seen.pop(c, None)
 from app.services.tts import text_to_speech
 from app.config import get_settings
 import plivo, httpx, time, hashlib
@@ -39,7 +58,10 @@ def get_menu_cached(db: Session, plivo_number: str) -> tuple:
         _menu_cache[plivo_number] = (None, None)
         return None, None
     menu = db.query(Menu).filter(Menu.restaurant_id == rest.id).order_by(Menu.id.desc()).first()
-    rest_data = SimpleNamespace(id=rest.id, name=rest.name)
+    # Cache a detached-safe snapshot, NOT the ORM instance. Caching the Restaurant
+    # object caused DetachedInstanceError on later calls once its session closed
+    # (500s on voice/SMS webhooks → busy signal). Mirrors voice_web._load_menu.
+    rest_data = SimpleNamespace(id=rest.id, name=rest.name, plivo_number=rest.plivo_number)
     result = (rest_data, menu.raw_text if menu else None)
     _menu_cache[plivo_number] = result
     return result
@@ -106,10 +128,26 @@ async def voice_inbound(request: Request, db: Session = Depends(get_db)):
     form      = await request.form()
     to_number = form.get("To", settings.plivo_number)
 
+    from_number = form.get("From", "")
     rest, _ = get_menu_cached(db, to_number)
     rest_name = rest.name if rest else "the restaurant"
-    ws_url    = f"wss://support.hostbuddy.io{BASE}/ws/voice"
-    greeting  = f"Welcome to {rest_name}. What would you like today?"
+    # Fix possessive: "Dennys" → "Denny's", "Joes" → "Joe's", etc. ElevenLabs
+    # reads names with apostrophes much more naturally — without the apostrophe
+    # "Dennys" gets flattened into a single syllable rather than the possessive.
+    import re as _re
+    if _re.match(r"^[A-Z][a-z]+ys$", rest_name):
+        rest_name = rest_name[:-2] + "y's"
+    elif _re.match(r"^[A-Z][a-z]+s$", rest_name) and not rest_name.endswith("ss"):
+        rest_name = rest_name[:-1] + "'s"
+
+    # Pass caller's number on the WS URL — Plivo's Stream start event does NOT include `From`,
+    # so this is the only way for the WS handler to know who to text after complete_order.
+    from urllib.parse import quote
+    ws_url    = f"wss://support.hostbuddy.io{BASE}/ws/voice?from={quote(from_number)}"
+    # Greeting wording. ElevenLabs turbo_v2 has trouble with the word "Bliss" —
+    # consistently reads it as "Blitz". The accented vowel + soft S blurs in 8 kHz
+    # mulaw. Comma-break before the name slows TTS enough to land the "ss".
+    greeting  = f"Hi, thanks for calling, {rest_name}. What can I get for you today?"
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -343,37 +381,85 @@ def _is_duplicate_sms(caller: str, body: str, window_sec: int = 60) -> bool:
 
 
 def _process_sms_background(body: str, caller: str, to_num: str):
-    """Run in background so the webhook returns 200 instantly (stops Plivo retries)."""
+    """
+    Run in background so the webhook returns 200 instantly (stops Plivo retries).
+
+    Uses the SAME pipeline as voice/web:
+      - per-caller session_id and history (multi-turn order building over SMS)
+      - structured menu + modifier fast-path
+      - automatic complete_order on closing intent ("I'm done", "checkout", ...)
+      - response includes the PayPal link inline (no double-SMS to caller)
+    """
     t_start = time.time()
+    _gc_sms_history()
+
     db = SessionLocal()
     try:
         rest, menu_text = get_menu_cached(db, to_num)
-        offers_url = f"https://support.hostbuddy.io{BASE}/offers"
 
+        # VIP keyword takes top priority — "text VIP" is the headline demo flow.
+        from app.services import vip as vip_svc
+        rid      = rest.id if rest else 1
+        sms_sess = _sms_session_id(caller)
+        vip_reply = vip_svc.keyword_intent(body, sms_sess, identifier=caller, restaurant_id=rid)
+
+        # Hotel quick intents (legacy concierge feature)
         hotel_reply = _hotel_intent(body)
-        if hotel_reply:
-            reply, claude_ms, noise = hotel_reply, 0.0, False
+
+        if vip_reply:
+            reply, claude_ms, noise, checkout_url = vip_reply, 0.0, False, None
+            print(f"[sms] vip intent: {repr(body[:40])}")
+        elif hotel_reply:
+            reply, claude_ms, noise, checkout_url = hotel_reply, 0.0, False, None
             print(f"[sms] hotel intent: {repr(body[:40])}")
-            # Append offers link on check-in so guest sees all available services
-            if any(k in body.lower() for k in ["checking in", "check in", "check-in", "arrive"]):
-                link = f" {offers_url}"
-                reply = reply[:160 - len(link)] + link
         elif not menu_text:
-            reply, claude_ms, noise = "Menu not available yet.", 0.0, False
+            reply, claude_ms, noise, checkout_url = "Menu not available yet.", 0.0, False, None
         else:
-            result    = get_recommendation_cached(menu_text, body or "What do you recommend?")
-            reply     = result["recommendation"]
-            claude_ms = result["claude_latency_ms"]
-            noise     = result["noise_flag"]
-            # Append offers link so guests can explore all services
-            reply = reply[:130] + f" More: {offers_url}"
+            session_id = _sms_session_id(caller)
+            hist       = _sms_history.setdefault(caller, [])
+            _sms_history_seen[caller] = time.time()
+
+            # Pre-set the caller's phone on the cart so complete_order knows
+            # the destination for the (skipped) auto-SMS — we put the link
+            # inline in the reply instead.
+            try:
+                cart = cart_svc.get_or_create(session_id, rest.id if rest else 1)
+                cart.caller_phone = caller
+            except Exception as e:
+                print(f"[sms] cart precreate err: {e}")
+
+            result = get_recommendation(
+                menu_text, body,
+                state         = "browsing",
+                language      = "en",
+                restaurant_id = rest.id if rest else 1,
+                session_id    = session_id,
+                history       = hist,
+            )
+            reply        = result["recommendation"]
+            claude_ms    = result["claude_latency_ms"]
+            noise        = result.get("noise_flag", False)
+            checkout_url = result.get("checkout_url")
+
+            # Append turn to history
+            hist.append({"role": "user",      "content": body})
+            hist.append({"role": "assistant", "content": reply})
+            if len(hist) > 12:
+                _sms_history[caller] = hist[-12:]
+
+            # If an order was placed, replace the spoken-style line with a
+            # compact SMS that ALWAYS contains the checkout URL on its own.
+            # complete_order already auto-sent an SMS via Plivo; we de-dupe
+            # by detecting the SMS session prefix in recommender (next change).
+            if checkout_url:
+                reply = f"Order placed. Total ${result.get('total', '')} — pay: {checkout_url}".replace(" $ ", " ")
 
         total_ms = round((time.time() - t_start) * 1000, 1)
-        print(f"[sms] reply ({total_ms}ms): {reply[:80]}")
+        print(f"[sms] reply ({total_ms}ms): {reply[:120]}")
 
         try:
             client = plivo.RestClient(settings.plivo_auth_id, settings.plivo_auth_token)
-            client.messages.create(src=to_num, dst=caller, text=reply[:160])
+            client.messages.create(src=to_num, dst=caller, text=reply[:300])
         except Exception as e:
             print(f"[sms] send failed: {e}")
 
