@@ -57,6 +57,11 @@ class Cart:
     current_item_id: Optional[int] = None
     current_item_name: str = ""
     phone_prompted: bool = False   # asked once for a receipt phone (kiosk/web)
+    # Snapshot of the most recently completed order — set by complete_order just
+    # before clear(), so callers (SMS reply, browser receipt) can still read the
+    # total/line-items after the live cart has been emptied.
+    last_order_total: float = 0.0
+    last_order_items: List[dict] = field(default_factory=list)
 
     def touch(self):
         self.last_active = time.time()

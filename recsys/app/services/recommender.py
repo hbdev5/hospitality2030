@@ -516,6 +516,11 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
             except Exception as e:
                 print(f"[cart] sms send failed: {e}")
 
+        # Snapshot the final total + line items BEFORE clearing, so the SMS
+        # reply / browser receipt can show them after the cart is emptied
+        # (otherwise they read an already-cleared cart → "$0.00").
+        cart.last_order_total = total
+        cart.last_order_items = order_items
         cart.clear()
         spoken_amount = f"{int(total)} dollars" if total == int(total) else f"{total:.2f} dollars"
         vip_note = (f" Your VIP {int(vip_discount_pct)}% {vip_cond} discount saved you ${vip_discount_amt:.2f}."
@@ -825,8 +830,14 @@ def get_recommendation(
         try:
             _cart_for_out = cart_svc.get(session_id)
             if _cart_for_out:
-                out["total"]      = f"{_cart_for_out.total():.2f}"
-                out["cart_items"] = _cart_for_out.to_dict()["items"]
+                # complete_order clears the cart, so a just-placed order reads the
+                # snapshot it stashed; otherwise use the live cart (mid-order).
+                if not _cart_for_out.items and _cart_for_out.last_order_items:
+                    out["total"]      = f"{_cart_for_out.last_order_total:.2f}"
+                    out["cart_items"] = _cart_for_out.last_order_items
+                else:
+                    out["total"]      = f"{_cart_for_out.total():.2f}"
+                    out["cart_items"] = _cart_for_out.to_dict()["items"]
         except Exception:
             pass
 
