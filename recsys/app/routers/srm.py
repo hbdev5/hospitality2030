@@ -15,11 +15,12 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
+from app.paths import home
 from app.services import srm as srm_svc
 
 router    = APIRouter()
 settings  = get_settings()
-templates = Jinja2Templates(directory=os.path.expanduser("~/work/recsys/templates"))
+templates = Jinja2Templates(directory=home("templates"))
 
 
 @router.get("/api/srm/menu-items")

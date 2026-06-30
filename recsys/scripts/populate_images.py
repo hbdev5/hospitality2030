@@ -5,7 +5,7 @@ item-name keywords. Idempotent — re-run anytime; only fills/refreshes URLs.
 Usage (on VM):  cd /home/azureuser/work/recsys && python3 scripts/populate_images.py
 """
 import os, sys, re
-sys.path.insert(0, os.path.expanduser('~/work/recsys'))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import SessionLocal, MenuItem
 
 _U = "https://images.unsplash.com/"

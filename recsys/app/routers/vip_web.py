@@ -21,12 +21,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, VipSubscriber
 from app.config   import get_settings
+from app.paths    import home
 from app.services import vip as vip_svc
 from app.services import paypal as paypal_svc
 
 router    = APIRouter()
 settings  = get_settings()
-templates = Jinja2Templates(directory=os.path.expanduser("~/work/recsys/templates"))
+templates = Jinja2Templates(directory=home("templates"))
 
 
 def _identifier_for_session(session: str) -> str:

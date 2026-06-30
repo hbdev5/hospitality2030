@@ -4,9 +4,13 @@ Generates MP3 files, saves to static/audio/, returns a public URL for Plivo <Pla
 Caches by content hash so repeated phrases reuse the same file.
 """
 import io, hashlib, httpx, os
+from app.paths import home
+from app.config import get_settings
 
-AUDIO_DIR = os.path.expanduser("~/work/recsys/static/audio")
-BASE_URL  = "https://support.hostbuddy.io/recsys/static/audio"
+AUDIO_DIR = home("static", "audio")
+# Public URL Plivo fetches the MP3 from — tied to THIS deployment's base
+# (…/recsys/static/audio, …/aie26/static/audio, …).
+BASE_URL  = get_settings().public_base_url.rstrip("/") + "/static/audio"
 
 
 def text_to_speech(text: str) -> str:

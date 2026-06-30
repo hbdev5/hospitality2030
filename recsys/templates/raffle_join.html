@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enter the Raffle</title>
+<style>
+  :root{--blue:#2563EB;--ink:#1f2430;--bg:#eef2f8;--line:#e6eaf1}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh;align-items:center;justify-content:center;padding:18px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,.10);max-width:420px;width:100%;padding:26px}
+  h1{font-size:22px;margin:0 0 4px}
+  p.sub{color:#8a93a6;font-size:14px;margin:0 0 18px}
+  label{font-size:12px;font-weight:600;color:#6a7387;display:block;margin:12px 0 4px}
+  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:16px;outline:none}
+  input:focus{border-color:var(--blue)}
+  button{width:100%;margin-top:20px;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.6}
+  .ok{text-align:center;padding:14px 0}
+  .ok .big{font-size:40px}
+  .err{color:#c0392b;font-size:13px;margin-top:8px;min-height:18px}
+  .badge{display:inline-block;background:#eef6ff;color:var(--blue);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;margin-bottom:10px}
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="badge">🎟️ RAFFLE</div>
+    <h1>Enter the raffle</h1>
+    <p class="sub">Pop in your details and you're in the draw. We'll email you if you win.</p>
+    <form id="f" autocomplete="on">
+      <label for="name">Full name</label>
+      <input id="name" name="name" type="text" autocomplete="name" placeholder="Jane Doe" required>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="jane@email.com" required>
+      <label for="phone">Mobile (optional)</label>
+      <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+1 555 123 4567" value="{{ phone }}">
+      <button id="go" type="submit">Enter me 🎉</button>
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+
+<script>
+  // When served by the app, "{{ base }}" renders to e.g. /aie26. If you open the
+  // RAW template (e.g. a preview panel) it stays literal and there's no backend —
+  // fall back to a relative path so the URL is at least well-formed.
+  let BASE = "{{ base }}"; if (BASE.indexOf("{{") === 0) BASE = "";
+  const Q = new URLSearchParams(location.search);
+  // Prefill phone from the link the agent sent; carry session + channel through.
+  if (Q.get('p')) document.getElementById('phone').value = Q.get('p');
+  const SESSION = Q.get('s') || '';
+  const CHANNEL = Q.get('c') || 'web_form';
+
+  document.getElementById('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const go = document.getElementById('go'), err = document.getElementById('err');
+    err.textContent = '';
+    const payload = {
+      name:  document.getElementById('name').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      session: SESSION, channel: CHANNEL,
+    };
+    if (!payload.name || !payload.email) { err.textContent = 'Name and email are required.'; return; }
+    go.disabled = true; go.textContent = 'Entering…';
+    try {
+      const r = await fetch(`${BASE}/api/raffle/submit`, {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const d = await r.json().catch(() => ({ok:false}));
+      if (!r.ok || !d.ok) {
+        go.disabled = false; go.textContent = 'Enter me 🎉';
+        err.textContent = d.error || 'Something went wrong — please try again.';
+        return;
+      }
+      document.getElementById('card').innerHTML =
+        `<div class="ok"><div class="big">🎉</div><h1>You're entered!</h1>
+         <p class="sub">Thanks ${payload.name.split(' ')[0] || ''} — good luck! We'll email you if you win.</p></div>`;
+    } catch (e) {
+      go.disabled = false; go.textContent = 'Enter me 🎉';
+      err.textContent = 'Something went wrong — please try again.';
+    }
+  });
+</script>
+</body>
+</html>

@@ -2,8 +2,11 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+from starlette.middleware.sessions import SessionMiddleware
 import os, sys
-sys.path.insert(0, os.path.expanduser('~/work/recsys'))
+_APP_HOME = (os.environ.get("APP_HOME")
+             or os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _APP_HOME)
 
 from app.database import init_db
 from app.routers import plivo_hooks, menu, metrics
@@ -14,6 +17,14 @@ from app.routers import text_chat
 from app.routers import vip_web
 from app.routers import admin_vip
 from app.routers import srm
+from app.routers import operator
+from app.routers import skills
+from app.routers import sms_test
+from app.routers import auth
+from app.routers import catalog
+from app.routers import onboard
+from app.routers import gmail_oauth
+from app.routers import admin_ops
 from app.config import get_settings
 
 settings = get_settings()
@@ -21,14 +32,19 @@ BASE = settings.base_path  # /recsys
 
 app = FastAPI(root_path=BASE)
 
+# Signed session cookie (merchant login). same_site=lax so the cookie survives
+# Google's OAuth redirect back to /auth/google/callback.
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key,
+                   same_site="lax", https_only=False)
+
 @app.on_event("startup")
 def startup():
     init_db()
     print("[RecsYS] DB tables ready")
 
 # Static + templates
-static_dir    = os.path.expanduser("~/work/recsys/static")
-templates_dir = os.path.expanduser("~/work/recsys/templates")
+static_dir    = os.path.join(_APP_HOME, "static")
+templates_dir = os.path.join(_APP_HOME, "templates")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=templates_dir)
 
@@ -43,6 +59,14 @@ app.include_router(text_chat.router)  # Browser Text-to-Order channel (owner tes
 app.include_router(vip_web.router)    # VIP membership signup (PayPal subscription)
 app.include_router(admin_vip.router)  # Admin VIP setup + card editor; consumer config
 app.include_router(srm.router)        # Self-Running Marketing — weekly VIP campaigns
+app.include_router(operator.router)   # Operator console: conversation log + annotation
+app.include_router(skills.router)     # Self-learning agent skills (operator-taught intents)
+app.include_router(sms_test.router)   # Dev-only SMS test console (/smsTest, key-gated)
+app.include_router(auth.router)       # Google OAuth merchant login + tenant session
+app.include_router(catalog.router)    # Photo → AI catalog upload (tenant-scoped)
+app.include_router(onboard.router)    # Merchant onboarding wizard (store name, phone, raffle)
+app.include_router(gmail_oauth.router) # One-time Gmail send authorization (OAuth)
+app.include_router(admin_ops.router)   # Admin: authorize → buy requested numbers
 
 # UI pages
 @app.get("/", response_class=HTMLResponse)
@@ -56,6 +80,17 @@ async def agentstudio_page(request: Request):
         "base": BASE,
         "plivo_number": settings.plivo_number,
     })
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page(request: Request):
+    """Merchant home — sign in with Google, then manage your store."""
+    return templates.TemplateResponse(request=request, name="dashboard_merchant.html", context={"base": BASE})
+
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_page(request: Request):
+    """Create a store (name + slug); works without Google OAuth configured."""
+    return templates.TemplateResponse(request=request, name="signup.html", context={
+        "base": BASE, "google_client_id": settings.google_oauth_client_id})
 
 @app.get("/menu", response_class=HTMLResponse)
 async def menu_page(request: Request):

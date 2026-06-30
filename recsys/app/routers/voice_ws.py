@@ -31,6 +31,7 @@ from starlette.websockets import WebSocketState
 from google.cloud import speech as google_speech
 from google.oauth2 import service_account
 from app.config import get_settings
+from app.paths import home
 from app.database import SessionLocal, Restaurant, Menu, CallLog
 from app.services.recommender import get_recommendation, complete_order as finalize_order
 from app.services import cart as cart_svc
@@ -168,7 +169,7 @@ _FILLER_RATE = 0.33   # probability of playing
 
 async def _warm_filler_cache(eleven_chunks_fn):
     """Pre-generate ElevenLabs TTS for all filler phrases. Called once per process."""
-    filler_dir = "/home/azureuser/work/recsys/static/audio/fillers"
+    filler_dir = home("static", "audio", "fillers")
     os.makedirs(filler_dir, exist_ok=True)
     all_phrases = {p for phrases in _FILLERS.values() for p in phrases}
     for phrase in all_phrases:
@@ -624,6 +625,7 @@ async def voice_ws(ws: WebSocket):
                 restaurant_id     = rest.id if rest else None,
                 call_type         = "voice",
                 caller_number     = to_number,
+                session_id        = call_session_id,
                 transcript        = text,
                 recommendation    = rec,
                 claude_latency_ms = result["claude_latency_ms"],

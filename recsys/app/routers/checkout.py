@@ -16,11 +16,12 @@ import os, json as _json
 
 from app.database import get_db, Order
 from app.config   import get_settings
+from app.paths    import home
 from app.services import paypal as paypal_svc
 
 router    = APIRouter()
 settings  = get_settings()
-templates = Jinja2Templates(directory=os.path.expanduser("~/work/recsys/templates"))
+templates = Jinja2Templates(directory=home("templates"))
 
 
 @router.get("/checkout/{order_id}", response_class=HTMLResponse)

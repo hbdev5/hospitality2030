@@ -1,0 +1,16 @@
+[Unit]
+Description=aie26 FastAPI - HostBuddy AI Ordering (parallel deployment of recsys)
+After=network.target
+
+[Service]
+User=azureuser
+WorkingDirectory=/home/azureuser/work/aie26
+EnvironmentFile=/home/azureuser/work/aie26/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=APP_HOME=/home/azureuser/work/aie26
+ExecStart=/home/azureuser/work/aie26/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 5001 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

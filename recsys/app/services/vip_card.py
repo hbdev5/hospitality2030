@@ -15,6 +15,7 @@ served by the existing /static mount (no Cloudinary).
 import os
 from PIL import Image, ImageDraw, ImageFont
 from app.config import get_settings
+from app.paths import home
 
 settings = get_settings()
 
@@ -23,7 +24,7 @@ HF = 500          # front height
 HB = 600          # back height
 GAP = 20
 _FONT_DIR = "/usr/share/fonts/truetype/dejavu"
-_STATIC_DIR = os.path.expanduser("~/work/recsys/static")
+_STATIC_DIR = home("static")
 _CARD_DIR   = os.path.join(_STATIC_DIR, "vip_cards")
 
 _DEFAULT_BENEFITS = [

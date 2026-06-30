@@ -2,8 +2,8 @@
 Migrates Curry Bliss (apppod_beta merchantId=51934) menu into recsys structured
 schema. Idempotent — re-running clears the target restaurant's menu and re-imports.
 """
-import sys, pymysql
-sys.path.insert(0, '/home/azureuser/work/recsys')
+import sys, os, pymysql
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import (
     SessionLocal, init_db, Restaurant,
     MenuCategory, MenuItem, MenuModifierGroup, MenuModifierOption, MenuItemModifierGroup,

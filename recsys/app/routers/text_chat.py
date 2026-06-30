@@ -17,6 +17,8 @@ from app.database import SessionLocal, Restaurant, Menu
 from app.services.recommender import get_recommendation
 from app.services import cart as cart_svc
 from app.services import vip as vip_svc
+from app.services import skills as skills_svc
+from app.services.convo_log import log_turn
 
 router = APIRouter()
 
@@ -52,11 +54,22 @@ async def text_chat(request: Request):
     rid = rest.id if rest else 1
 
     checkout_url = None
+    claude_ms    = 0.0
+    noise        = False
 
+    # Mid-collection follow-up (e.g. raffle name+email) takes top priority.
+    pending = skills_svc.pending_reply(message, restaurant_id=rid, session_id=session_id, caller=None, channel="text")
     # VIP keyword fast-path (headline demo flow) — deterministic, no LLM.
-    vip_reply = vip_svc.keyword_intent(message, session_id, identifier=session_id, restaurant_id=rid)
-    if vip_reply:
+    vip_reply = None if pending else vip_svc.keyword_intent(message, session_id, identifier=session_id, restaurant_id=rid)
+    # Operator-taught skills (self-learning) — run before the LLM, like VIP.
+    skill_reply = None if (pending or vip_reply) else skills_svc.match(
+        message, restaurant_id=rid, session_id=session_id, caller=None, channel="text")
+    if pending:
+        reply = pending
+    elif vip_reply:
         reply = vip_reply
+    elif skill_reply:
+        reply = skill_reply
     elif not menu_text:
         reply = "Our menu isn't available right now. Please try again soon."
     else:
@@ -71,6 +84,8 @@ async def text_chat(request: Request):
         )
         reply        = result["recommendation"]
         checkout_url = result.get("checkout_url")
+        claude_ms    = result.get("claude_latency_ms", 0.0)
+        noise        = result.get("noise_flag", False)
         hist.append({"role": "user",      "content": message})
         hist.append({"role": "assistant", "content": reply})
         if len(hist) > 12:
@@ -88,6 +103,11 @@ async def text_chat(request: Request):
 
     total_ms = round((time.time() - t_start) * 1000)
     print(f"[text] {total_ms}ms | {message!r} -> {reply[:60]!r}")
+
+    # Persist the turn so the operator console sees browser-text conversations too.
+    log_turn("text", message, reply,
+             restaurant_id=rid, session_id=session_id,
+             claude_latency_ms=claude_ms, total_latency_ms=total_ms, noise_flag=noise)
 
     resp = {"reply": reply, "cart_items": cart_items, "cart_total": cart_total, "ms": total_ms}
     if checkout_url:

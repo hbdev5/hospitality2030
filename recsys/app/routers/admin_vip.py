@@ -18,6 +18,7 @@ from openai import OpenAI
 
 from app.database import get_db, VipProgram
 from app.config   import get_settings
+from app.paths    import home
 from app.services import vip as vip_svc
 from app.services import vip_card
 from app.services import paypal as paypal_svc
@@ -25,7 +26,7 @@ from app.services import paypal as paypal_svc
 router   = APIRouter()
 settings = get_settings()
 
-_STATIC_DIR = os.path.expanduser("~/work/recsys/static")
+_STATIC_DIR = home("static")
 _LOGO_DIR   = os.path.join(_STATIC_DIR, "vip_logos")
 
 _THEME_HEX = {

@@ -16,6 +16,7 @@ from datetime import date, datetime
 from openai import OpenAI
 
 from app.config import get_settings
+from app.paths import home
 from app.database import SessionLocal, Playbook, VipSubscriber
 from app.services import menu_cache
 from app.services import vip as vip_svc
@@ -50,7 +51,7 @@ def _img_for(text: str, w: int = 600) -> str:
     return f"{_U}{pid}?auto=format&fit=crop&w={w}&q=80"
 
 
-_MENU_IMG_DIR = os.path.expanduser("~/work/recsys/static/menu_images")
+_MENU_IMG_DIR = home("static", "menu_images")
 
 def _inventory_image(restaurant_id: int, item_name: str):
     """Real product photo for an item if the owner has uploaded one to

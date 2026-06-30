@@ -24,3 +24,6 @@ static/audio/
 *.log
 .idea/
 .vscode/
+
+# Gmail send-only refresh token (per-deployment, never commit)
+.gmail_token

@@ -2,354 +2,358 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Oak & Ivy — AI Studio Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HostBuddy Console</title>
 <style>
-  :root{ --blue:#2563EB; --green:#16a34a; --ink:#1f2430; --bg:#eef2f8; --line:#e6eaf1; }
+  :root{--blue:#2563EB;--ink:#1f2430;--bg:#f4f6fb;--card:#fff;--line:#e6eaf1;--mut:#8a93a6;--green:#16a34a;--nav:#101626}
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-  .grid{max-width:1360px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1fr 470px;gap:16px}
-  .card{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .app{display:flex;height:100vh;overflow:hidden}
 
-  .console{display:flex;flex-direction:column;min-height:86vh}
-  .topbar{background:var(--blue);color:#fff;border-radius:14px 14px 0 0;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
-  .topbar h1{margin:0;font-size:20px;font-weight:700}
-  .toggle{display:flex;align-items:center;gap:8px;font-size:13px}
-  .toggle b{font-weight:700}
-  .sw{width:46px;height:24px;background:#9bbcff;border-radius:20px;position:relative;cursor:pointer;transition:.2s}
-  .sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
-  .sw.admin{background:#f0a020}.sw.admin::after{left:24px}
-  .chatarea{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;min-height:220px}
-  .msg{max-width:82%;padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}
-  .msg.bot{align-self:flex-start;background:#f1f3f8}
-  .msg.user{align-self:flex-end;background:var(--blue);color:#fff}
-  .msg a{color:inherit;text-decoration:underline}
-  .inputrow{display:flex;gap:10px;padding:14px 20px}
-  .inputrow input{flex:1;border:1px solid var(--line);border-radius:24px;padding:13px 18px;font-size:15px;outline:none}
-  .iconbtn{width:46px;height:46px;border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .mic{background:var(--green)} .sendb{background:var(--blue)}
-  .iconbtn svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  /* ── Left nav (sidebar on desktop, drawer on mobile) ── */
+  .nav{width:264px;background:var(--nav);color:#cdd5e6;flex-shrink:0;display:flex;flex-direction:column;transition:transform .22s ease}
+  .nav .brand{padding:18px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1d2740}
+  .nav .brand .logo{width:30px;height:30px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+  .nav .brand b{color:#fff;font-size:15px;display:block}
+  .nav .brand small{color:#7f8aa3;font-size:11px}
+  .nav .grp{padding:10px 10px;overflow-y:auto;flex:1}
+  .nav a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#c2cbdf;text-decoration:none;font-size:14.5px;cursor:pointer}
+  .nav a:hover{background:#1a2236;color:#fff}
+  .nav a.act{background:var(--blue);color:#fff}
+  .nav a .ic{width:20px;text-align:center}
+  .nav a.danger{color:#ff8a8a}
+  .nav .sep{height:1px;background:#1d2740;margin:8px 6px}
 
-  .agents{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:8px 20px 22px}
-  .agent{border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;background:#fff;text-decoration:none;color:var(--ink);transition:.15s;position:relative}
-  .agent:hover{border-color:var(--blue);transform:translateY(-2px)}
-  .agent .ic{height:36px;display:flex;align-items:center;justify-content:center}
-  .agent .ic svg{width:34px;height:34px;fill:none;stroke:#1f2430;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-  .agent .ic img{width:34px;height:34px;object-fit:contain;border-radius:6px}
-  /* Big standout image icons (SRM, Vision) — fill the card */
-  .agent.bigicon{padding:8px}
-  .agent.bigicon .ic{height:auto}
-  .agent.bigicon .ic img{width:100%;height:auto;border-radius:12px}
-  .agent .nm{font-size:12px;margin-top:8px;font-weight:600}
-  .agent.soon{opacity:1}            /* no dimming */
-  .agent .tag{display:none}         /* no LIVE/SOON chips */
+  /* ── Main column ── */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+  .burger{display:none;width:40px;height:40px;border:none;background:#eef1f6;border-radius:10px;font-size:18px;cursor:pointer}
+  .top .ttl{font-weight:700;font-size:15px;flex:1}
+  .top .ttl .dot{color:var(--green);font-size:12px;font-weight:500}
+  .top .av{width:34px;height:34px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;overflow:hidden}
+  .top .av img{width:100%;height:100%;object-fit:cover}
 
-  .right{display:flex;flex-direction:column;gap:16px}
-  .tabs{display:flex;gap:18px;padding:14px 18px 0;font-size:14px}
-  .tabs span{padding-bottom:10px;color:#8a93a6;cursor:pointer;border-bottom:2px solid transparent}
-  .tabs span.act{color:var(--blue);border-color:var(--blue);font-weight:600}
-  .pad{padding:16px 18px 18px}
-  .log{margin:10px 18px 16px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;height:170px;overflow-y:auto;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#5a6172;line-height:1.7}
-  .log .g{color:var(--green)}
-  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-  .stat{padding:14px}.stat .big{font-size:24px;font-weight:800}.stat .lbl{font-size:12px;color:#8a93a6}.stat .delta{font-size:11px;color:var(--green);margin-top:14px}
-  .perf{padding:16px 18px}.perf h3{margin:0 0 10px;font-size:15px}.perf .row{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .panel{display:none;height:100%}
+  .panel.act{display:flex;flex-direction:column}
+  .pad{padding:16px;max-width:760px;margin:0 auto;width:100%}
 
-  /* VIP card + editor */
-  .cardwrap{text-align:center;margin-bottom:14px}
-  .cardwrap img{max-width:100%;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
-  .ed{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .ed label{font-size:11px;color:#8a93a6;display:block;margin-bottom:3px;font-weight:600;letter-spacing:.3px}
-  .ed .full{grid-column:1/-1}
-  .ed input[type=text],.ed input[type=number]{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;outline:none}
-  .ed input[type=color]{width:100%;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
-  .ed .filebtn{font-size:12px}
-  .subbox{text-align:center}
-  .subbox .price{font-size:22px;font-weight:800;margin:6px 0 2px}
-  .subbox .ben{color:#8a93a6;font-size:13px;margin-bottom:12px}
-  #paypalSub{min-height:46px}
-  .okmsg{background:#e9f9ef;border:1px solid #b6e6c8;color:#1f7a44;border-radius:10px;padding:14px;font-weight:600;text-align:center}
-  .hide{display:none}
-  @media(max-width:1080px){.grid{grid-template-columns:1fr}.agents{grid-template-columns:repeat(3,1fr)}.stats{grid-template-columns:1fr}}
+  /* ── Chat ── */
+  .chat{flex:1;display:flex;flex-direction:column;min-height:0}
+  .msgs{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:12px;max-width:760px;margin:0 auto;width:100%}
+  .m{max-width:84%;padding:11px 14px;border-radius:16px;font-size:15px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+  .m.bot{align-self:flex-start;background:#fff;border:1px solid var(--line)}
+  .m.user{align-self:flex-end;background:var(--blue);color:#fff}
+  .m a{color:inherit;text-decoration:underline}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 8px;max-width:760px;margin:0 auto;width:100%}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 13px;font-size:13px;cursor:pointer;color:#3c4356}
+  .chip:hover{border-color:var(--blue);color:var(--blue)}
+  .numbtn{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;margin-top:6px;cursor:pointer;font-size:14px}
+  .numbtn:hover{border-color:var(--blue)}
+  .inputrow{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line);background:var(--card);max-width:760px;margin:0 auto;width:100%}
+  .inputrow input{flex:1;border:1px solid var(--line);border-radius:24px;padding:13px 18px;font-size:16px;outline:none}
+  .iconbtn{width:46px;height:46px;border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:18px;flex-shrink:0}
+  .iconbtn.send{background:var(--blue)}
+
+  /* ── generic cards / settings ── */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .card h3{margin:0 0 4px;font-size:15px}.card p.sub{margin:0 0 12px;color:var(--mut);font-size:13px}
+  label{font-size:12px;font-weight:600;color:#6a7387;display:block;margin:10px 0 4px}
+  input[type=text],input[type=tel]{width:100%;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:16px;outline:none}
+  .btn{background:var(--blue);color:#fff;border:none;border-radius:9px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn.ghost{background:#eef1f6;color:#3c4356}
+  .btn:disabled{opacity:.55}
+  .status{font-size:13px;margin-top:8px;min-height:16px}.status.ok{color:var(--green)}.status.err{color:#c0392b}
+  .pill{display:inline-block;background:#eef6ff;color:var(--blue);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600}
+  .pill.warn{background:#fff0e0;color:#a5631a}
+
+  /* conversations / skills rows */
+  .turn,.skillrow{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fff}
+  .turn .meta{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-bottom:6px}
+  .turn .chan{text-transform:uppercase;font-weight:700;color:var(--blue)}
+  .turn .u{font-size:13px;margin-bottom:6px}.turn .u b{color:var(--mut)}
+  .turn .r{font-size:14px;background:#f1f3f8;border-radius:8px;padding:8px 30px 8px 10px;position:relative}
+  .turn .pencil{position:absolute;top:5px;right:5px;border:none;background:transparent;cursor:pointer;font-size:14px}
+  .editbadge{background:#fff0e0;color:#a5631a;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:6px}
+  .turn .editor{display:none;margin-top:8px}.turn.editing .editor{display:block}
+  .turn textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;margin-top:4px}
+  .editrow{display:flex;gap:8px;margin-top:8px}
+  .savebtn{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .cancelbtn{background:#eef1f6;border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .skillrow .nm{font-weight:700;font-size:14px}.skillrow .meta{font-size:11px;color:var(--mut);margin-top:2px}
+  .skillrow .resp{font-size:13px;background:#f1f3f8;border-radius:7px;padding:6px 9px;margin-top:6px}
+  .drawbtn{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+  .winbox{background:#e9f9ef;border:1px solid #b6e6c8;color:#1f7a44;border-radius:10px;padding:10px;font-weight:700;text-align:center;margin-top:8px}
+  .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+
+  .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40}
+  @media(max-width:860px){
+    .nav{position:fixed;z-index:50;height:100%;transform:translateX(-100%)}
+    .nav.open{transform:translateX(0)}
+    .burger{display:block}
+    .scrim.show{display:block}
+  }
 </style>
 </head>
 <body>
-<div class="grid">
-
-  <!-- LEFT: console -->
-  <div class="card console">
-    <div class="topbar">
-      <h1>Console v2.0</h1>
-      <div class="toggle"><b id="lblUser">User</b><div class="sw" id="modeSw"></div><b id="lblAdmin" style="opacity:.6">Admin</b></div>
+<div class="app">
+  <!-- NAV -->
+  <nav class="nav" id="nav">
+    <div class="brand"><div class="logo">H</div><div><b>HostBuddy Console</b><small id="navStore">MerchantBot · <span style="color:#43d17a">Online</span></small></div></div>
+    <div class="grp">
+      <a data-dest="chat" class="act"><span class="ic">💬</span> Chat (Console)</a>
+      <a data-dest="conversations"><span class="ic">📋</span> Conversations</a>
+      <a data-dest="skills"><span class="ic">🧠</span> Skills</a>
+      <a data-dest="settings"><span class="ic">⚙️</span> Settings</a>
+      <div class="sep"></div>
+      <a id="lnkText"><span class="ic">📝</span> Text to Order</a>
+      <a id="lnkKiosk"><span class="ic">🖥️</span> Kiosk Order</a>
+      <a id="lnkPhone"><span class="ic">📞</span> Phone Order</a>
+      <a href="{{ base }}/srm"><span class="ic">📣</span> Auto Marketing</a>
+      <a href="{{ base }}/vip/preview" target="_blank"><span class="ic">⭐</span> Loyalty</a>
+      <div class="sep"></div>
+      <a class="danger" href="{{ base }}/auth/logout"><span class="ic">⏏︎</span> Log out</a>
     </div>
+  </nav>
+  <div class="scrim" id="scrim"></div>
 
-    <div class="chatarea" id="chat">
-      <div class="msg bot" id="greet">Hello! How can I help with your order today? (Now with Vision &amp; AI) — try typing <b>VIP</b>.</div>
+  <!-- MAIN -->
+  <div class="main">
+    <div class="top">
+      <button class="burger" id="burger">☰</button>
+      <div class="ttl">HostBuddy AI Agent <span class="dot">● Online</span></div>
+      <div class="av" id="av">A</div>
     </div>
+    <div class="content">
 
-    <div class="inputrow">
-      <input id="box" placeholder="Type your message..." autocomplete="off">
-      <button class="iconbtn mic" title="Kiosk (voice)" onclick="location.href='{{ base }}/kiosk'"><svg viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 10.5a7 7 0 0 0 14 0"/><line x1="12" y1="17.5" x2="12" y2="21"/></svg></button>
-      <button class="iconbtn sendb" id="send" title="Send"><svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></button>
-    </div>
-
-    <div class="agents">
-      <a class="agent live" href="{{ base }}/text"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="7" y1="8.5" x2="17" y2="8.5"/><line x1="7" y1="12" x2="13" y2="12"/></svg></div><div class="nm">Text to Order</div></a>
-      <a class="agent live" href="tel:{{ plivo_number }}"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.3"/><path d="M3.5 20c0-3.3 2.4-5.5 5.5-5.5s5.5 2.2 5.5 5.5"/><path d="M16.5 7.5c1.3 1.3 1.3 3.7 0 5"/><path d="M18.8 5.5c2.1 2.1 2.1 6.9 0 9"/></svg></div><div class="nm">Phone Order</div></a>
-      <a class="agent live" href="{{ base }}/kiosk"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="12" rx="1.5"/><line x1="7" y1="6.5" x2="13" y2="6.5"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg></div><div class="nm">Kiosk Order</div></a>
-      <a class="agent soon" href="#" data-soon="Drive Through"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="12" height="11" rx="1.5"/><line x1="6" y1="10" x2="11" y2="10"/><line x1="6" y1="13" x2="9" y2="13"/><path d="M14.5 11.5h6M17.5 8.5l3 3-3 3"/></svg></div><div class="nm">Drive Through</div></a>
-      <a class="agent live bigicon" href="{{ base }}/srm"><div class="ic"><img src="{{ base }}/static/icons/srm.png" alt="SRM"></div><div class="nm">Auto Marketing</div></a>
-
-      <a class="agent bigicon" href="#"><div class="ic"><img src="{{ base }}/static/icons/vision-intelligence.png" alt="Vision"></div><div class="nm">Vision Intelligence</div></a>
-      <a class="agent soon" href="#" data-soon="POS Connect"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><ellipse cx="5.5" cy="6" rx="3" ry="1.5"/><path d="M2.5 6v9c0 .8 1.3 1.5 3 1.5s3-.7 3-1.5V6"/><ellipse cx="18.5" cy="6" rx="3" ry="1.5"/><path d="M15.5 6v9c0 .8 1.3 1.5 3 1.5s3-.7 3-1.5V6"/><path d="M13.5 9.5 15.5 11l-2 1.5M10.5 11.5l-2 1.5 2 1.5"/></svg></div><div class="nm">POS Connect</div></a>
-      <a class="agent soon" href="#" data-soon="Performance IQ"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.6A2.8 2.8 0 0 0 6 18.5a3 3 0 0 0 3-1.2V4.5z"/><path d="M15 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.6A2.8 2.8 0 0 1 18 18.5a3 3 0 0 1-3-1.2V4.5z"/><path d="M12 21.5v-7M10 16.5l2-2 2 2"/></svg></div><div class="nm">Performance IQ</div></a>
-      <a class="agent soon" href="#" data-soon="Multi-Modal AI"><span class="tag">SOON</span><div class="ic"><svg viewBox="0 0 24 24"><rect x="5.5" y="3" width="5" height="9" rx="2.5"/><path d="M3 10a5 5 0 0 0 10 0"/><line x1="8" y1="15" x2="8" y2="18"/><path d="M13.5 16c1.7-2.2 4.8-2.2 6.5 0-1.7 2.2-4.8 2.2-6.5 0z"/><circle cx="16.75" cy="16" r="1"/></svg></div><div class="nm">Multi-Modal AI</div></a>
-      <a class="agent live" href="tel:{{ plivo_number }}"><span class="tag">LIVE</span><div class="ic"><svg viewBox="0 0 24 24"><path d="M6.5 3h-3a1 1 0 0 0-1 1.1A17 17 0 0 0 19.9 21.5a1 1 0 0 0 1.1-1v-3a1 1 0 0 0-.8-1l-3.3-.7a1 1 0 0 0-1 .3l-1.2 1.2a14 14 0 0 1-5.9-5.9l1.2-1.2a1 1 0 0 0 .3-1l-.7-3.3a1 1 0 0 0-1-.8z"/></svg></div><div class="nm">{{ plivo_number }}</div></a>
-    </div>
-  </div>
-
-  <!-- RIGHT -->
-  <div class="card right" style="align-self:flex-start">
-    <div class="tabs">
-      <span class="act" data-tab="system">System</span>
-      <span data-tab="loyalty">Loyalty</span>
-      <span data-tab="config">Configuration</span>
-    </div>
-
-    <!-- SYSTEM TAB -->
-    <div id="tabSystem">
-      <div class="log">
-        <div><span class="g">[14:02:15]</span> Vision models loaded successfully</div>
-        <div><span class="g">[14:02:16]</span> POS proxies connected to every terminal</div>
-        <div><span class="g">[14:02:17]</span> Performance IQ activated</div>
-        <div><span class="g">[13:36:21]</span> System initialized and ready</div>
-        <div><span class="g">[13:36:21]</span> Browser detected: Chrome 148</div>
-        <div>Voice recognition engine loaded · Waiting for user input...</div>
-        <div>MerchantBot Voice Integration initialized · Voice recording ready</div>
-      </div>
-      <div class="pad stats">
-        <div class="card stat"><div class="big">50K</div><div class="lbl">Active Users</div><div class="delta">32K from last month</div></div>
-        <div class="card stat"><div class="big">500K</div><div class="lbl">Monthly Revenue</div><div class="delta">15.8% from last month</div></div>
-        <div class="card stat"><div class="lbl">Vision Accuracy</div><div class="big">99.2%</div><div class="delta">0.3% from last month</div></div>
-      </div>
-      <div class="perf">
-        <h3>Agent Performance (w/ Performance IQ)</h3>
-        <div class="row"><span>Transactions</span><b>1,310</b></div>
-        <div class="row"><span>Avg. Processing Time</span><b>0.9s</b></div>
-        <div class="row"><span>Success Rate</span><b>99.1%</b></div>
-        <div class="row"><span>Vision Recognition Rate</span><b>99.2%</b></div>
-      </div>
-    </div>
-
-    <!-- LOYALTY TAB -->
-    <div id="tabLoyalty" class="pad hide">
-      <div class="cardwrap">
-        <iframe id="cardFrame" src="{{ base }}/vip/preview" style="width:100%;height:660px;border:none;border-radius:12px;background:#0a0a0a"></iframe>
-        <div style="margin-top:6px"><a href="{{ base }}/vip/preview" target="_blank" style="color:var(--blue);font-size:13px">↗ Open full card preview</a></div>
-      </div>
-
-      <!-- ADMIN: visual editor -->
-      <div id="vipAdmin" class="hide">
-        <div style="background:#f1f3f8;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px">
-          <div style="color:#8a93a6;font-weight:600;letter-spacing:.3px;margin-bottom:4px">CUSTOMER SIGNUP LINK</div>
-          <a id="joinLink" href="#" target="_blank" style="color:var(--blue);word-break:break-all">—</a>
-          <div style="color:#9aa1b1;margin-top:3px">Share this, or customers text <b>VIP</b> to your number.</div>
-          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
-            <a id="previewLink" href="#" target="_blank" style="color:var(--blue);font-weight:600">↗ Open full card preview</a>
-            <span style="color:#9aa1b1"> — test before going live</span>
-          </div>
-          <div style="margin-top:6px">
-            <a href="{{ base }}/srm" target="_blank" style="color:var(--blue);font-weight:600">📣 Weekly Marketing Studio</a>
-            <span style="color:#9aa1b1"> — menu-driven VIP email campaigns</span>
-          </div>
+      <!-- CHAT -->
+      <div class="panel act chat" id="p-chat">
+        <div class="msgs" id="msgs"></div>
+        <div class="chips" id="chips">
+          <span class="chip" data-q="Show today's orders">Show today's orders</span>
+          <span class="chip" data-q="Check missed calls">Check missed calls</span>
+          <span class="chip" data-q="Create a VIP campaign">Create a VIP campaign</span>
         </div>
-        <div class="ed">
-          <div class="full"><label>Card Title</label><input type="text" id="f_title"></div>
-          <div class="full"><label>Subtitle / tagline</label><input type="text" id="f_subtitle"></div>
-          <div class="full"><label>Benefit 1</label><input type="text" id="f_benefit"></div>
-          <div class="full"><label>Benefit 2</label><input type="text" id="f_benefit2"></div>
-          <div class="full"><label>Benefit 3</label><input type="text" id="f_benefit3"></div>
-          <div><label>Price ($/month)</label><input type="number" id="f_price" step="0.5" min="0"></div>
-          <div><label>Visit discount (%)</label><input type="number" id="f_disc" step="1" min="0"></div>
-          <div><label>Accent color</label><input type="color" id="f_accent"></div>
-          <div><label>Background color</label><input type="color" id="f_bg"></div>
-          <div class="full"><label>Website (on card)</label><input type="text" id="f_website" placeholder="currybliss.com"></div>
-          <div class="full"><label>Logo</label><input class="filebtn" type="file" id="f_logo" accept="image/*"></div>
+        <div class="inputrow">
+          <input id="box" placeholder="Type your message…" autocomplete="off">
+          <button class="iconbtn send" id="send">➤</button>
         </div>
       </div>
 
-      <!-- USER: subscribe -->
-      <div id="vipUser" class="hide subbox">
-        <div class="price" id="u_price">$5/month</div>
-        <div class="ben" id="u_ben">Free drink or chips every visit</div>
-        <div id="paypalSub"></div>
-        <div style="font-size:11px;color:#9aa1b1;margin-top:10px;text-align:left;background:#fff7f0;border:1px solid #f6dcc4;border-radius:8px;padding:9px;line-height:1.5">
-          <b style="color:#7a5a2a">Sandbox — no real charge.</b> Log in with a PayPal sandbox personal account, or use card <b>4111 1111 1111 1111</b>, exp 12/30, CVV 123.
-        </div>
-        <div id="subOk" class="okmsg hide">Welcome to VIP! 🎉 Your benefits are now active.</div>
-      </div>
-    </div>
+      <!-- CONVERSATIONS -->
+      <div class="panel" id="p-conversations"><div class="pad">
+        <div class="hd"><h3 style="margin:0">Conversations <span style="font-weight:400;color:var(--mut);font-size:12px">— all channels</span></h3><button class="btn ghost" id="convoRefresh">↻ Refresh</button></div>
+        <div id="convoList">Loading…</div>
+      </div></div>
 
-    <!-- CONFIG TAB -->
-    <div id="tabConfig" class="pad hide">
-      <p style="color:#5a6172;font-size:14px">Plivo number: <b>{{ plivo_number }}</b><br>
-      Voice / SMS webhooks configured. VIP plan + card managed under the Loyalty tab (Admin mode).</p>
+      <!-- SKILLS -->
+      <div class="panel" id="p-skills"><div class="pad">
+        <div class="hd"><h3 style="margin:0">Agent Skills</h3><button class="btn ghost" id="skillRefresh">↻ Refresh</button></div>
+        <div id="skillList">Loading…</div>
+        <div class="hd" style="margin-top:14px"><h3 style="margin:0">Raffle Entrants <span id="raffleCount" style="font-weight:400;color:var(--mut);font-size:12px"></span></h3><button class="drawbtn" id="raffleDraw">🎲 Draw winner</button></div>
+        <div id="raffleWin"></div><div id="raffleList">Loading…</div>
+        <h3 style="margin:16px 0 8px">Guestbook <span id="gbCount" style="font-weight:400;color:var(--mut);font-size:12px"></span></h3>
+        <div id="gbList">Loading…</div>
+      </div></div>
+
+      <!-- SETTINGS -->
+      <div class="panel" id="p-settings"><div class="pad">
+        <div class="card">
+          <h3>Store</h3><p class="sub">Your store name and public link.</p>
+          <label>Store name</label><input type="text" id="setName" placeholder="Fresh Valley Market">
+          <div style="margin-top:6px"><span class="muted" style="color:var(--mut);font-size:12px">Public link: <code id="setSlug">—</code></span></div>
+          <div style="margin-top:10px"><button class="btn" id="saveName">Save</button><span class="status" id="nameStatus"></span></div>
+        </div>
+        <div class="card">
+          <h3>Phone number</h3><p class="sub">Voice ordering line. <span class="pill warn">SMS needs 10DLC</span></p>
+          <div id="phoneCur"></div>
+          <label>Area code</label>
+          <div style="display:flex;gap:8px"><input type="tel" id="setArea" inputmode="numeric" maxlength="3" placeholder="415" style="max-width:120px"><button class="btn ghost" id="findNums">Find numbers</button></div>
+          <div id="numList" style="margin-top:8px"></div>
+          <div class="status" id="phoneStatus"></div>
+        </div>
+      </div></div>
+
     </div>
   </div>
 </div>
 
 <script>
 const BASE = '{{ base }}';
-const SESSION = 'studio-' + Math.random().toString(36).slice(2, 10);
-let mode = 'user';
-let cfg  = null;
-let paypalLoaded = false;
+const SESSION = 'studio-' + Math.random().toString(36).slice(2,10);
+let ME = null, SLUG = '';
+const $ = s => document.getElementById(s);
+const esc = s => (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const linkify = t => esc(t).replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
 
-const chat = document.getElementById('chat'), box = document.getElementById('box'), send = document.getElementById('send');
-const linkify = t => t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
-function add(text, who){ const d=document.createElement('div'); d.className='msg '+who;
-  d.innerHTML = who==='bot' ? linkify(text) : text.replace(/</g,'&lt;'); chat.appendChild(d); chat.scrollTop=chat.scrollHeight; }
-
-// ── tabs ──
-document.querySelectorAll('.tabs span').forEach(s => s.onclick = () => showTab(s.dataset.tab));
-function showTab(t){
-  document.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('act', x.dataset.tab===t));
-  document.getElementById('tabSystem').classList.toggle('hide', t!=='system');
-  document.getElementById('tabLoyalty').classList.toggle('hide', t!=='loyalty');
-  document.getElementById('tabConfig').classList.toggle('hide', t!=='config');
+// ── nav / drawer ──
+const nav=$('nav'), scrim=$('scrim');
+function openNav(o){ nav.classList.toggle('open',o); scrim.classList.toggle('show',o); }
+$('burger').onclick=()=>openNav(!nav.classList.contains('open'));
+scrim.onclick=()=>openNav(false);
+document.querySelectorAll('.nav a[data-dest]').forEach(a=>a.onclick=()=>{ go(a.dataset.dest); openNav(false); });
+function go(dest){
+  document.querySelectorAll('.nav a[data-dest]').forEach(a=>a.classList.toggle('act',a.dataset.dest===dest));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act'));
+  $('p-'+dest).classList.add('act');
+  if(dest==='conversations') loadConvos();
+  if(dest==='skills') loadSkills();
+  if(dest==='settings') loadSettings();
 }
 
-// ── mode toggle ──
-const sw = document.getElementById('modeSw');
-sw.onclick = () => setMode(mode==='user' ? 'admin' : 'user');
-function setMode(m){
-  mode = m;
-  sw.classList.toggle('admin', m==='admin');
-  document.getElementById('lblAdmin').style.opacity = m==='admin' ? 1 : .6;
-  document.getElementById('lblUser').style.opacity  = m==='user'  ? 1 : .6;
-  document.getElementById('vipAdmin').classList.toggle('hide', m!=='admin');
-  document.getElementById('vipUser').classList.toggle('hide', m!=='user');
-  if(m==='admin'){
-    box.placeholder = 'e.g. set up a VIP plan, $5/month for chips or a drink for every entree';
-    document.getElementById('greet').innerHTML = 'Admin mode — describe your VIP plan and I’ll build the card. Try: <b>"set up a VIP plan, $5/month for chips or a drink for every entree purchased"</b>.';
-    showTab('loyalty');
-  } else {
-    box.placeholder = 'Type your message...';
-    if(cfg) renderSubscribe();
+// ── chat ──
+const msgs=$('msgs'), box=$('box'), send=$('send');
+function add(text,who){ const d=document.createElement('div'); d.className='m '+who; d.innerHTML = who==='bot'?linkify(text):esc(text); msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d; }
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ box.value=c.dataset.q; submit(); });
+
+// onboarding state machine (first run)
+let OB=null; // {step}
+function startOnboarding(){
+  OB={step:'name'};
+  add("👋 Welcome! Let's set up your store. **What's your store name?**",'bot');
+}
+async function obHandle(text){
+  if(OB.step==='name'){
+    const d=await postJSON(`${BASE}/api/onboard/store-name`,{name:text});
+    if(!d.ok){ add(d.error||'Try another name.','bot'); return; }
+    SLUG=d.slug;
+    OB.step='phone';
+    add(`Great — “${esc(d.name)}” is set (link: ${BASE}/r/${d.slug}/).\nWant a phone number for voice ordering? Reply with a **3-digit area code**, or “skip”.`,'bot');
+  } else if(OB.step==='phone'){
+    if(/skip|no\b/i.test(text)){ return finishOnboarding(); }
+    const ac=(text.match(/\d{3}/)||[])[0];
+    if(!ac){ add('Reply with a 3-digit area code (e.g. 415), or “skip”.','bot'); return; }
+    add('Looking for numbers…','bot');
+    const d=await (await fetch(`${BASE}/api/onboard/numbers?area_code=${ac}`)).json();
+    if(!d.ok||!(d.numbers||[]).length){ add((d.error||'No numbers found')+' — try another area code or “skip”.','bot'); return; }
+    const wrap=add('Tap a number to request it (we activate it for you — no charge to tap):','bot');
+    d.numbers.forEach(n=>{ const b=document.createElement('button'); b.className='numbtn'; b.textContent=`+${n.number}  ·  $${n.rate}/mo`; b.onclick=()=>obRequest(n.number,b); wrap.appendChild(b); });
+    OB.step='pick';
   }
 }
+async function obRequest(number,btn){
+  btn.disabled=true; btn.textContent='Requesting…';
+  const d=await postJSON(`${BASE}/api/onboard/request-number`,{number});
+  if(!d.ok){ btn.disabled=false; btn.textContent='Retry'; add(d.error||'Could not request that number.','bot'); return; }
+  add(`📨 Got it — +${number} is requested. It activates once your account is approved (we'll email you). Your phone agent is ready meanwhile.`,'bot');
+  finishOnboarding();
+}
+async function finishOnboarding(){
+  const d=await postJSON(`${BASE}/api/onboard/finish`,{});
+  add("🎉 You're all set! Raffle is enabled by default. You can manage everything from the menu (☰). How can I help with your store today?",'bot');
+  OB=null; await loadMe();
+}
 
-// ── chat submit ──
 async function submit(){
-  const t = box.value.trim(); if(!t) return;
+  const t=box.value.trim(); if(!t) return;
   add(t,'user'); box.value=''; send.disabled=true;
   try{
-    if(mode==='admin'){
-      const r = await fetch(`${BASE}/api/admin/vip/setup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})});
-      const d = await r.json();
-      add(d.reply || 'Updated.', 'bot');
-      if(d.config){ cfg = Object.assign(cfg||{}, d.config); fillEditor(); }
-      if(d.card_url) bumpCard(d.card_url);
-      showTab('loyalty');
-    } else {
-      const r = await fetch(`${BASE}/api/text/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t,session_id:SESSION})});
-      const d = await r.json(); add(d.reply || '…','bot');
+    if(OB){ await obHandle(t); }
+    else {
+      const d=await postJSON(`${BASE}/api/text/chat`,{message:t,session_id:SESSION});
+      add(d.reply||'…','bot');
     }
   }catch(e){ add('Sorry, something went wrong.','bot'); }
   send.disabled=false; box.focus();
 }
-send.onclick = submit;
-box.addEventListener('keydown', e => { if(e.key==='Enter') submit(); });
-document.querySelectorAll('.agent.soon').forEach(a => a.addEventListener('click', e => { e.preventDefault(); alert(a.dataset.soon + ' — coming soon.'); }));
+send.onclick=submit; box.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+async function postJSON(u,b){ return (await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})).json(); }
 
-// ── card + editor ──
-function bumpCard(url){ const f=document.getElementById('cardFrame'); if(f) f.src = '{{ base }}/vip/preview?t=' + Date.now(); }
-function fillEditor(){
-  if(!cfg) return;
-  document.getElementById('f_title').value    = cfg.card_title || '';
-  document.getElementById('f_subtitle').value = cfg.card_subtitle || '';
-  document.getElementById('f_benefit').value  = cfg.recurring_benefit || '';
-  document.getElementById('f_benefit2').value = cfg.benefit2 || '';
-  document.getElementById('f_benefit3').value = cfg.benefit3 || '';
-  document.getElementById('f_price').value    = ((cfg.monthly_fee_cents||0)/100);
-  document.getElementById('f_disc').value     = cfg.visit_discount_percent || 0;
-  document.getElementById('f_accent').value   = cfg.accent_color || '#C5A03C';
-  document.getElementById('f_bg').value       = cfg.bg_color || '#121212';
-  document.getElementById('f_website').value  = cfg.card_website || '';
-  if (cfg.join_url) {
-    const jl = document.getElementById('joinLink');
-    jl.href = cfg.join_url; jl.textContent = cfg.join_url;
-  }
-  if (cfg.preview_url) document.getElementById('previewLink').href = cfg.preview_url;
+// ── conversations ──
+async function loadConvos(){
+  const list=$('convoList'); list.textContent='Loading…';
+  try{ const d=await (await fetch(`${BASE}/api/conversations?limit=100`)).json(); const turns=d.turns||[];
+    if(!turns.length){ list.innerHTML='<div style="color:var(--mut);font-size:13px">No conversations yet. Orders & messages to your store show up here.</div>'; return; }
+    list.innerHTML=''; turns.forEach(t=>list.appendChild(renderTurn(t)));
+  }catch(e){ list.innerHTML='<div style="color:#c0392b">Could not load.</div>'; }
 }
-let cardTimer=null;
-function pushCard(){
-  clearTimeout(cardTimer);
-  cardTimer = setTimeout(async () => {
-    const payload = {
-      card_title:        document.getElementById('f_title').value,
-      card_subtitle:     document.getElementById('f_subtitle').value,
-      recurring_benefit: document.getElementById('f_benefit').value,
-      benefit2:          document.getElementById('f_benefit2').value,
-      benefit3:          document.getElementById('f_benefit3').value,
-      monthly_fee_cents: Math.round(parseFloat(document.getElementById('f_price').value||'0')*100),
-      visit_discount_percent: parseFloat(document.getElementById('f_disc').value||'0'),
-      accent_color:      document.getElementById('f_accent').value,
-      bg_color:          document.getElementById('f_bg').value,
-      card_website:      document.getElementById('f_website').value,
-    };
-    const r = await fetch(`${BASE}/api/admin/vip/card`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const d = await r.json();
-    if(d.config){ cfg = Object.assign(cfg||{}, d.config); }
-    if(d.card_url) bumpCard(d.card_url);
-  }, 500);
+function renderTurn(t){
+  const el=document.createElement('div'); el.className='turn';
+  const shown=t.operator_reply||t.recommendation, edited=t.operator_reply?'<span class="editbadge">EDITED</span>':'';
+  el.innerHTML=`<div class="meta"><span><span class="chan">${esc(t.type||'?')}</span> · ${esc(t.caller||t.session_id||'—')}</span><span>${esc(t.time)}</span></div>
+    <div class="u"><b>Guest:</b> ${esc(t.transcript)||'<i>(no input)</i>'}</div>
+    <div class="r"><button class="pencil">✏️</button><b style="color:var(--mut)">Agent:</b> ${esc(shown)}${edited}
+      <div class="editor"><label>Edit response</label><textarea class="ed-reply" rows="3">${esc(shown)}</textarea>
+      <label>Comment</label><textarea class="ed-note" rows="2">${esc(t.operator_note)}</textarea>
+      <div class="editrow"><button class="savebtn">Save</button><button class="cancelbtn">Cancel</button></div></div></div>`;
+  el.querySelector('.pencil').onclick=()=>el.classList.toggle('editing');
+  el.querySelector('.cancelbtn').onclick=()=>el.classList.remove('editing');
+  el.querySelector('.savebtn').onclick=async()=>{
+    const d=await postJSON(`${BASE}/api/conversations/${t.id}/annotate`,{reply:el.querySelector('.ed-reply').value,note:el.querySelector('.ed-note').value});
+    el.replaceWith(renderTurn(d));
+  };
+  return el;
 }
-['f_title','f_subtitle','f_benefit','f_benefit2','f_benefit3','f_price','f_disc','f_accent','f_bg','f_website']
-  .forEach(id => document.getElementById(id).addEventListener('input', pushCard));
-document.getElementById('f_logo').addEventListener('change', async e => {
-  if(!e.target.files[0]) return;
-  const fd = new FormData(); fd.append('file', e.target.files[0]);
-  const r = await fetch(`${BASE}/api/admin/vip/logo`,{method:'POST',body:fd});
-  const d = await r.json(); if(d.card_url) bumpCard(d.card_url);
-});
+$('convoRefresh').onclick=loadConvos;
 
-// ── consumer subscribe ──
-function renderSubscribe(){
-  if(!cfg) return;
-  document.getElementById('u_price').textContent = (cfg.fee || '$5') + '/month';
-  document.getElementById('u_ben').textContent   = cfg.recurring_benefit || '';
-  if(!cfg.plan_id || !cfg.paypal_client_id){ document.getElementById('paypalSub').innerHTML='<small style="color:#9aa1b1">PayPal setup pending.</small>'; return; }
-  if(paypalLoaded){ drawButtons(); return; }
-  const s = document.createElement('script');
-  s.src = `https://www.paypal.com/sdk/js?client-id=${cfg.paypal_client_id}&vault=true&intent=subscription`;
-  s.onload = () => { paypalLoaded = true; drawButtons(); };
-  document.head.appendChild(s);
+// ── skills + raffle + guestbook ──
+async function loadSkills(){
+  const list=$('skillList');
+  try{ const d=await (await fetch(`${BASE}/api/skills`)).json(); const sk=d.skills||[];
+    list.innerHTML=sk.length?'':'<div style="color:var(--mut);font-size:13px">No skills yet. Open Conversations, hit ✏️ on a turn, and teach one.</div>';
+    sk.forEach(s=>{ const r=document.createElement('div'); r.className='skillrow';
+      r.innerHTML=`<div class="nm">${esc(s.name)} ${s.action==='raffle_entry'?'<span class="pill">raffle</span>':''}</div><div class="meta">triggers: ${esc((s.phrases||[]).join(', '))}</div><div class="resp">${esc(s.response)}</div>`;
+      list.appendChild(r); });
+  }catch(e){ list.innerHTML='<div style="color:#c0392b">Could not load.</div>'; }
+  loadRaffle(); loadGuestbook();
 }
-function drawButtons(){
-  const c = document.getElementById('paypalSub'); c.innerHTML='';
-  if(!window.paypal) return;
-  paypal.Buttons({
-    style:{shape:'pill',color:'gold',layout:'vertical',label:'subscribe'},
-    createSubscription:(data,actions)=>actions.subscription.create({plan_id:cfg.plan_id, custom_id:SESSION}),
-    onApprove:async(data)=>{
-      try{
-        const r = await fetch(`${BASE}/api/vip/subscribe/capture`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription_id:data.subscriptionID, session:SESSION})});
-        const d = await r.json();
-        if(d.card_url) bumpCard(d.card_url);
-      }catch(e){}
-      c.classList.add('hide'); document.getElementById('subOk').classList.remove('hide');
-      add('You’re now a VIP member — your benefits apply on every order this session.', 'bot');
-    }
-  }).render('#paypalSub');
+async function loadRaffle(){
+  try{ const d=await (await fetch(`${BASE}/api/raffle/entries`)).json(); $('raffleCount').textContent=`— ${d.count}`;
+    const e=d.entries||[]; const list=$('raffleList'); list.innerHTML=e.length?'':'<div style="color:var(--mut);font-size:13px">No entrants yet.</div>';
+    e.forEach(x=>{ const r=document.createElement('div'); r.className='skillrow';
+      r.innerHTML=`<div class="nm">${esc(x.name||'Guest')} ${x.won?'<span class="pill">WINNER</span>':''}</div><div class="meta">${esc([x.email,x.phone].filter(Boolean).join(' · ')||'—')} · via ${esc(x.channel)}</div>`;
+      list.appendChild(r); });
+  }catch(e){}
 }
+async function loadGuestbook(){
+  try{ const d=await (await fetch(`${BASE}/api/guestbook`)).json(); $('gbCount').textContent=`— ${d.count}`;
+    const e=d.entries||[]; const list=$('gbList'); list.innerHTML=e.length?'':'<div style="color:var(--mut);font-size:13px">No guests yet.</div>';
+    e.forEach(x=>{ const r=document.createElement('div'); r.className='skillrow';
+      r.innerHTML=`<div class="nm">${esc(x.name||'Guest')} <span class="pill">${esc(x.source||'')}</span></div><div class="meta">${esc([x.email,x.phone].filter(Boolean).join(' · ')||'—')} · ${x.visits} visit(s)</div>`;
+      list.appendChild(r); });
+  }catch(e){}
+}
+$('skillRefresh').onclick=loadSkills;
+$('raffleDraw').onclick=async()=>{ const d=await (await fetch(`${BASE}/api/raffle/draw`,{method:'POST'})).json();
+  $('raffleWin').innerHTML=d.winner?`<div class="winbox">🎉 ${esc(d.winner.name||'Guest')}${d.winner.email?' · '+esc(d.winner.email):''}</div>`:'<div class="winbox" style="background:#fff7f0;color:#a5631a">No entrants yet.</div>'; loadRaffle(); };
+
+// ── settings ──
+function loadSettings(){
+  if(!ME||!ME.store) return;
+  $('setName').value=ME.store.name||''; $('setSlug').textContent=`${BASE}/r/${ME.store.slug}/`;
+  $('phoneCur').innerHTML = ME.store.number ? `<div class="pill">Current: ${esc(ME.store.number)} · voice</div>` : '<div style="color:var(--mut);font-size:13px;margin-bottom:6px">No number yet.</div>';
+}
+$('saveName').onclick=async()=>{ const st=$('nameStatus'); st.className='status'; st.textContent='';
+  const d=await postJSON(`${BASE}/api/onboard/store-name`,{name:$('setName').value.trim()});
+  if(d.ok){ st.className='status ok'; st.textContent='Saved ✓'; await loadMe(); $('setSlug').textContent=`${BASE}/r/${d.slug}/`; }
+  else { st.className='status err'; st.textContent=d.error||'Failed.'; } };
+$('findNums').onclick=async()=>{ const ac=$('setArea').value.trim(); const nl=$('numList'); nl.innerHTML='Searching…';
+  const d=await (await fetch(`${BASE}/api/onboard/numbers?area_code=${ac}`)).json();
+  if(!d.ok||!(d.numbers||[]).length){ nl.innerHTML=`<div class="status err">${esc(d.error||'No numbers found.')}</div>`; return; }
+  nl.innerHTML=''; d.numbers.forEach(n=>{ const b=document.createElement('button'); b.className='numbtn'; b.textContent=`+${n.number} · $${n.rate}/mo · voice`;
+    b.onclick=async()=>{ b.disabled=true; b.textContent='Requesting…'; const r=await postJSON(`${BASE}/api/onboard/request-number`,{number:n.number});
+      const st=$('phoneStatus'); if(r.ok){ st.className='status ok'; st.textContent=`📨 +${r.number} requested — pending activation (we'll email you).`; nl.innerHTML=''; } else { b.disabled=false; b.textContent='Retry'; st.className='status err'; st.textContent=r.error||'Failed.'; } };
+    nl.appendChild(b); }); };
 
 // ── init ──
-fetch(`${BASE}/api/vip/config`).then(r=>r.json()).then(d=>{
-  cfg = d; fillEditor();
-  if(d.card_url) bumpCard(d.card_url);
-  renderSubscribe();
-}).catch(()=>{});
-box.focus();
+async function loadMe(){
+  try{ ME=await (await fetch(`${BASE}/api/me`)).json(); }catch(e){ ME=null; }
+  if(ME&&ME.store){ SLUG=ME.store.slug||'';
+    $('navStore').innerHTML=`${esc(ME.store.name||'My Store')} · <span style="color:#43d17a">Online</span>`;
+    if(ME.owner&&ME.owner.picture){ $('av').innerHTML=`<img src="${ME.owner.picture}">`; }
+    else if(ME.owner&&ME.owner.name){ $('av').textContent=ME.owner.name[0].toUpperCase(); }
+    $('lnkText').onclick=()=>location.href=`${BASE}/r/${SLUG}/text`;
+    $('lnkKiosk').onclick=()=>location.href=`${BASE}/r/${SLUG}/kiosk`;
+    if(ME.store.number) $('lnkPhone').onclick=()=>location.href=`tel:${ME.store.number}`;
+  }
+}
+(async function(){
+  await loadMe();
+  if(ME && ME.authenticated && ME.store && !ME.store.onboarded){ startOnboarding(); }
+  else { add("Hello! 👋 How can I help you today? I can help with orders, calls, campaigns, and more.",'bot'); }
+  box.focus();
+})();
 </script>
 </body>
 </html>

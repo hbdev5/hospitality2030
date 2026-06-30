@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merchant Dashboard</title>
+<style>
+  :root{--blue:#2563EB;--ink:#1f2430;--bg:#eef2f8;--line:#e6eaf1;--mut:#8a93a6}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,.08);max-width:460px;width:100%;padding:30px}
+  h1{font-size:22px;margin:0 0 6px}
+  p.sub{color:var(--mut);font-size:14px;margin:0 0 22px}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;color:#3c4043;text-decoration:none}
+  .gbtn:hover{background:#f7f9fc;border-color:#cdd6e6}
+  .gbtn img{width:18px;height:18px}
+  .who{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .who img{width:46px;height:46px;border-radius:50%}
+  .who .nm{font-weight:700}.who .em{color:var(--mut);font-size:13px}
+  .store{background:#f1f6ff;border:1px solid #d6e4ff;border-radius:12px;padding:14px;margin-bottom:16px}
+  .store .lbl{font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.3px}
+  .store .nm{font-size:17px;font-weight:700;margin:2px 0}
+  .links{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+  .links a{border:1px solid var(--line);border-radius:10px;padding:11px;text-align:center;text-decoration:none;color:var(--ink);font-size:14px;font-weight:600}
+  .links a:hover{border-color:var(--blue);color:var(--blue)}
+  .logout{display:inline-block;margin-top:14px;color:var(--mut);font-size:13px}
+  code{background:#eef1f6;padding:1px 6px;border-radius:5px;font-size:12px}
+  .muted{color:var(--mut);font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="card" id="card"><p class="sub">Loading…</p></div>
+
+<script>
+  const BASE = "{{ base }}";
+  const G = "https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg";
+
+  function signedOut(){
+    document.getElementById('card').innerHTML = `
+      <h1>Welcome</h1>
+      <p class="sub">Create your store — your own catalog, loyalty, marketing and guest list.</p>
+      <a class="gbtn" href="${BASE}/signup" style="background:var(--blue);color:#fff;border-color:var(--blue)">Create your store →</a>
+      <div style="height:10px"></div>
+      <a class="gbtn" href="${BASE}/signup"><img src="${G}" alt="">Continue with Google</a>
+      <div class="muted">Create your store or sign in with Google.</div>`;
+  }
+  function signedIn(d){
+    const o = d.owner||{}, s = d.store||{};
+    const slug = s.slug || '';
+    document.getElementById('card').innerHTML = `
+      <div class="who">
+        ${o.picture?`<img src="${o.picture}" alt="">`:''}
+        <div><div class="nm">${esc(o.name||'')}</div><div class="em">${esc(o.email||'')}</div></div>
+      </div>
+      <div class="store">
+        <div class="lbl">YOUR STORE</div>
+        <div class="nm">${esc(s.name||'My Store')}</div>
+        <div class="muted">Public link: <code>${BASE}/r/${esc(slug)}/</code></div>
+      </div>
+      <div class="links">
+        <a href="${BASE}/r/${esc(slug)}/catalog" style="grid-column:1/-1;background:#eef6ff;border-color:#d6e4ff;color:var(--blue)">📷 Add catalog from photos</a>
+        <a href="${BASE}/agentstudio">Console</a>
+        <a href="${BASE}/srm">Marketing</a>
+        <a href="${BASE}/r/${esc(slug)}/kiosk">Kiosk</a>
+        <a href="${BASE}/r/${esc(slug)}/text">Text order</a>
+      </div>
+      <a class="logout" href="${BASE}/auth/logout">Sign out</a>
+      <div class="muted">Multi-tenant Phase 1 — each merchant gets their own store. Catalog/branding scoping rolls out next.</div>`;
+  }
+  function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  fetch(`${BASE}/api/me`).then(r=>r.json()).then(d=>{
+    if(d.authenticated) signedIn(d); else signedOut();
+  }).catch(()=>signedOut());
+</script>
+</body>
+</html>

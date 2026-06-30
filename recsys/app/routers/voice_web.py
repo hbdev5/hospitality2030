@@ -16,6 +16,8 @@ from google.oauth2 import service_account
 from app.database import SessionLocal, Restaurant, Menu
 from app.services.recommender import get_recommendation
 from app.services.tts import text_to_speech
+from app.services.convo_log import log_turn
+from app.services import skills as skills_svc
 from app.config import get_settings
 import hashlib, time, os
 
@@ -95,7 +97,7 @@ def _transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm") -> t
 async def web_voice_greet():
     rest, _ = _load_menu()
     name     = rest.name if rest else "our hotel"
-    greeting = f"Welcome to {name}, how can I help you today?"
+    greeting = f"Welcome to {name}. I'm Alex, your voice concierge. How can I help you today?"
     audio_url = text_to_speech(greeting) or ""
     return JSONResponse({"greeting": greeting, "audio_url": audio_url})
 
@@ -118,8 +120,20 @@ async def web_voice_chat(audio: UploadFile = File(...),
     cart_total    = None
     feature_image = None
     options       = None
+    claude_ms     = 0.0
+    noise         = False
 
-    if not menu_text:
+    rid        = rest.id if rest else 1
+    pending     = skills_svc.pending_reply(transcript, restaurant_id=rid,
+                                           session_id=session_id, channel="web_voice")
+    skill_reply = None if pending else skills_svc.match(transcript, restaurant_id=rid,
+                                                        session_id=session_id, channel="web_voice")
+
+    if pending:
+        reply = pending
+    elif skill_reply:
+        reply = skill_reply
+    elif not menu_text:
         reply = "Our menu isn't available right now. Please try again soon."
     else:
         hist = _history.setdefault(session_id, [])
@@ -149,6 +163,8 @@ async def web_voice_chat(audio: UploadFile = File(...),
         cart_total    = result.get("total")
         feature_image = result.get("feature_image")
         options       = result.get("options")
+        claude_ms     = result.get("claude_latency_ms", 0.0)
+        noise         = result.get("noise_flag", False)
 
         # Append turn to history for next request; trim to last 12 messages
         hist.append({"role": "user",      "content": transcript})
@@ -171,6 +187,11 @@ async def web_voice_chat(audio: UploadFile = File(...),
     audio_url = text_to_speech(reply) or ""
     total_ms  = round((time.time() - t_start) * 1000)
     print(f"[voice-web] {total_ms}ms [{language}] | {repr(transcript)} -> {repr(reply[:60])}")
+
+    # Persist the turn so the operator console sees browser-voice conversations too.
+    log_turn("web_voice", transcript, reply,
+             restaurant_id=rest.id if rest else 1, session_id=session_id,
+             claude_latency_ms=claude_ms, total_latency_ms=total_ms, noise_flag=noise)
 
     resp: dict = {
         "transcript":   transcript,

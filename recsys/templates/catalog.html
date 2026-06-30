@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add catalog from a photo</title>
+<style>
+  :root{--blue:#2563EB;--ink:#1f2430;--bg:#eef2f8;--line:#e6eaf1;--mut:#8a93a6;--green:#16a34a}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:18px}
+  .wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.06);padding:18px}
+  h1{font-size:20px;margin:0 0 2px}.sub{color:var(--mut);font-size:13px;margin:0 0 14px}
+  .drop{border:2px dashed #cdd6e6;border-radius:12px;padding:22px;text-align:center;color:var(--mut)}
+  .btn{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:600;cursor:pointer}
+  .btn.ghost{background:#eef1f6;color:#3c4356}
+  .btn:disabled{opacity:.55}
+  input[type=file]{display:none}
+  .filelbl{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:11px 16px;cursor:pointer;font-weight:600;font-size:14px}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th{font-size:11px;color:var(--mut);text-align:left;padding:6px 6px;text-transform:uppercase;letter-spacing:.3px}
+  td{padding:4px 6px;border-top:1px solid var(--line)}
+  td input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:14px}
+  td.price input{width:90px}.td-rm{width:30px;text-align:center;color:#c0392b;cursor:pointer;font-weight:700}
+  .row2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .status{font-size:13px;color:var(--mut)}
+  .status.ok{color:var(--green)}.status.err{color:#c0392b}
+  img.preview{max-width:120px;border-radius:10px;margin-top:10px}
+  .store{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Add catalog from a photo</h1>
+    <p class="sub">Snap your stand or products — we'll read the items and suggest prices. Review, then save. <span class="store" id="store">→ {{ store_name }}</span></p>
+    <div class="drop">
+      <label class="filelbl" for="photo">📷 Take / choose photo</label>
+      <input id="photo" type="file" accept="image/*" capture="environment">
+      <div id="extractWrap" style="margin-top:12px;display:none">
+        <button class="btn" id="extract">Read items from photo</button>
+      </div>
+      <img class="preview" id="preview" style="display:none">
+    </div>
+    <div class="status" id="status" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" id="gridCard" style="display:none">
+    <h1 style="font-size:16px">Review items</h1>
+    <p class="sub">Edit names/prices, remove anything wrong, then save to your catalog.</p>
+    <table><thead><tr><th>Item</th><th>Category</th><th>Unit</th><th>Price $</th><th></th></tr></thead>
+      <tbody id="rows"></tbody></table>
+    <div class="row2">
+      <button class="btn ghost" id="addRow">+ Add row</button>
+      <button class="btn" id="save">Save to catalog</button>
+      <span class="status" id="saveStatus"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const BASE = "{{ base }}";
+  const SLUG = "{{ slug }}";
+  const API  = `${BASE}/r/${SLUG}/api/catalog`;
+  const q = s => document.getElementById(s);
+  let photoUrl = null;
+
+  q('photo').addEventListener('change', e => {
+    const f = e.target.files[0]; if(!f) return;
+    q('extractWrap').style.display='block';
+    const img = q('preview'); img.src = URL.createObjectURL(f); img.style.display='block';
+  });
+
+  q('extract').onclick = async () => {
+    const f = q('photo').files[0]; if(!f) return;
+    const st = q('status'); st.className='status'; st.textContent='Reading photo with AI…';
+    const b = q('extract'); b.disabled=true;
+    try{
+      const fd = new FormData(); fd.append('photo', f);
+      const d = await (await fetch(`${API}/extract`, {method:'POST', body:fd})).json();
+      if(!d.ok){ st.className='status err'; st.textContent = d.error || 'Could not read the photo.'; b.disabled=false; return; }
+      photoUrl = d.photo_url || null;
+      renderRows(d.items||[]);
+      st.className='status ok'; st.textContent = `Found ${(d.items||[]).length} item(s). Review below.`;
+      q('gridCard').style.display='block';
+    }catch(e){ st.className='status err'; st.textContent='Request failed.'; }
+    b.disabled=false;
+  };
+
+  function rowHtml(it){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input class="c-name" value="${esc(it.name||'')}"></td>
+      <td><input class="c-cat" value="${esc(it.category||'Other')}"></td>
+      <td><input class="c-unit" value="${esc(it.unit||'each')}"></td>
+      <td class="price"><input class="c-price" type="number" step="0.01" min="0" value="${(it.price!=null?it.price:'')}"></td>
+      <td class="td-rm">✕</td>`;
+    tr.querySelector('.td-rm').onclick = () => tr.remove();
+    return tr;
+  }
+  function renderRows(items){ const t=q('rows'); t.innerHTML=''; items.forEach(it=>t.appendChild(rowHtml(it))); }
+  q('addRow').onclick = () => q('rows').appendChild(rowHtml({category:'Other',unit:'each'}));
+
+  q('save').onclick = async () => {
+    const items = [...q('rows').children].map(tr => ({
+      name: tr.querySelector('.c-name').value.trim(),
+      category: tr.querySelector('.c-cat').value.trim(),
+      unit: tr.querySelector('.c-unit').value.trim(),
+      price: parseFloat(tr.querySelector('.c-price').value||'0'),
+    })).filter(i=>i.name);
+    const ss = q('saveStatus'); ss.className='status';
+    if(!items.length){ ss.className='status err'; ss.textContent='Nothing to save.'; return; }
+    const b=q('save'); b.disabled=true; b.textContent='Saving…';
+    try{
+      const d = await (await fetch(`${API}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items, photo_url:photoUrl})})).json();
+      if(!d.ok){ ss.className='status err'; ss.textContent=d.error||'Save failed.'; }
+      else { ss.className='status ok'; ss.textContent=`✓ Saved ${d.created} item(s) · ${d.total} in your catalog.`; }
+    }catch(e){ ss.className='status err'; ss.textContent='Save failed.'; }
+    b.disabled=false; b.textContent='Save to catalog';
+  };
+
+  function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>

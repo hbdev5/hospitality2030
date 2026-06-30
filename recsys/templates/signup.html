@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create your store</title>
+<style>
+  :root{--blue:#2563EB;--ink:#1f2430;--bg:#eef2f8;--line:#e6eaf1;--mut:#8a93a6;--green:#16a34a}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,.08);max-width:460px;width:100%;padding:30px}
+  h1{font-size:22px;margin:0 0 4px}
+  p.sub{color:var(--mut);font-size:14px;margin:0 0 20px}
+  label{font-size:12px;font-weight:600;color:#6a7387;display:block;margin:14px 0 4px}
+  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:15px;outline:none}
+  input:focus{border-color:var(--blue)}
+  .slugrow{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .slugrow .pre{background:#f3f6fb;color:var(--mut);padding:12px 10px;font-size:13px;white-space:nowrap;border-right:1px solid var(--line)}
+  .slugrow input{border:none;border-radius:0}
+  .avail{font-size:12px;margin-top:5px;min-height:16px}
+  .avail.ok{color:var(--green)} .avail.no{color:#c0392b}
+  button{width:100%;margin-top:20px;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.55}
+  .err{color:#c0392b;font-size:13px;margin-top:10px;min-height:18px}
+  .or{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:12px;margin:18px 0}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;color:#3c4043;text-decoration:none}
+  .gbtn:hover{background:#f7f9fc}
+  .muted{color:var(--mut);font-size:12px;margin-top:6px}
+  .ok-screen{text-align:center}.ok-screen .big{font-size:42px}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <h1>Create your store</h1>
+  <p class="sub">Name it and secure your public link. Takes a few seconds.</p>
+
+  <label for="name">Store name</label>
+  <input id="name" placeholder="Fresh Valley Market" autocomplete="organization">
+
+  <label for="slug">Public link (slug)</label>
+  <div class="slugrow"><span class="pre" id="pre">/r/</span><input id="slug" placeholder="fresh-valley-market" autocomplete="off"></div>
+  <div class="avail" id="avail"></div>
+
+  <label for="email">Email <span style="color:var(--mut);font-weight:400">(optional — links your Google login later)</span></label>
+  <input id="email" type="email" placeholder="you@store.com" autocomplete="email">
+
+  <button id="go">Create store</button>
+  <div class="err" id="err"></div>
+
+  <div class="or">or</div>
+  {% if google_client_id %}
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="onGoogle" data-auto_prompt="false"></div>
+    <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="continue_with" data-size="large" data-width="380"></div>
+    <div class="muted">Sign in with Google to create/own your store automatically.</div>
+  {% else %}
+    <a class="gbtn" href="{{ base }}/auth/google/login">Continue with Google</a>
+    <div class="muted">Google sign-in lights up once the client ID is set; the form above works now.</div>
+  {% endif %}
+</div>
+
+<script>
+  const BASE = "{{ base }}";
+  const q = s => document.getElementById(s);
+
+  // Google Identity Services callback — posts the ID token to our verify endpoint.
+  window.onGoogle = async (resp) => {
+    try{
+      const d = await (await fetch(`${BASE}/auth/google/onetap`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential: resp.credential})})).json();
+      if(d.ok){ location.href = d.redirect; }
+      else { q('err').textContent = 'Google sign-in failed: ' + (d.error||''); }
+    }catch(e){ q('err').textContent = 'Google sign-in failed.'; }
+  };
+  const slugify = s => (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  q('pre').textContent = BASE + '/r/';
+
+  let edited = false, t = null, lastOk = false;
+  q('name').addEventListener('input', () => { if(!edited){ q('slug').value = slugify(q('name').value); check(); } });
+  q('slug').addEventListener('input', () => { edited = true; q('slug').value = slugify(q('slug').value); check(); });
+
+  function check(){
+    clearTimeout(t);
+    const s = q('slug').value, a = q('avail');
+    if(!s){ a.className='avail'; a.textContent=''; lastOk=false; return; }
+    a.className='avail'; a.textContent='Checking…';
+    t = setTimeout(async () => {
+      try{
+        const d = await (await fetch(`${BASE}/api/slug-check?slug=${encodeURIComponent(s)}`)).json();
+        if(d.available){ a.className='avail ok'; a.textContent='✓ available'; lastOk=true; }
+        else { a.className='avail no'; a.textContent=`✗ taken — try “${d.suggestion}”`; lastOk=false; }
+      }catch(e){ a.className='avail'; a.textContent=''; }
+    }, 350);
+  }
+
+  q('go').onclick = async () => {
+    const payload = { name:q('name').value.trim(), slug:q('slug').value.trim(), email:q('email').value.trim() };
+    const err = q('err'); err.textContent='';
+    if(!payload.name){ err.textContent='Store name is required.'; return; }
+    if(!payload.slug){ err.textContent='Choose a slug.'; return; }
+    const b = q('go'); b.disabled=true; b.textContent='Creating…';
+    try{
+      const d = await (await fetch(`${BASE}/api/signup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})).json();
+      if(!d.ok){ b.disabled=false; b.textContent='Create store'; err.textContent=d.error||'Could not create store.'; check(); return; }
+      q('card').innerHTML = `<div class="ok-screen"><div class="big">🎉</div><h1>Store created!</h1>
+        <p class="sub">Your link: <b>${BASE}/r/${d.slug}/</b></p>
+        <a class="gbtn" href="${d.redirect}">Go to your dashboard →</a></div>`;
+      setTimeout(()=>location.href=d.redirect, 1200);
+    }catch(e){ b.disabled=false; b.textContent='Create store'; err.textContent='Something went wrong — please retry.'; }
+  };
+</script>
+</body>
+</html>

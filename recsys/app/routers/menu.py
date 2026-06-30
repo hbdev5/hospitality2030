@@ -6,10 +6,11 @@ from app.services.pdf_parser import parse_menu_pdf as extract_menu
 from app.routers.plivo_hooks import bust_menu_cache
 from app.routers.voice_web import bust_web_menu_cache
 from app.services import menu_cache as svc_menu_cache
+from app.paths import home
 import json, os, shutil
 
 router = APIRouter()
-UPLOAD_DIR = os.path.expanduser("~/work/recsys/data/uploads")
+UPLOAD_DIR = home("data", "uploads")
 
 @router.post("/api/menu/upload")
 async def upload_menu(

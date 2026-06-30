@@ -48,10 +48,28 @@ _menu_cache: dict   = {}
 _claude_cache: dict = {}
 
 
+def _digits10(n: str) -> str:
+    """Last 10 digits — normalizes +1 / 1 / bare formats so inbound `To` matches
+    the stored plivo_number regardless of '+' or country-code prefix."""
+    import re
+    d = re.sub(r"\D", "", n or "")
+    return d[-10:] if len(d) >= 10 else d
+
+
 def get_menu_cached(db: Session, plivo_number: str) -> tuple:
     if plivo_number in _menu_cache:
         return _menu_cache[plivo_number]
     rest = db.query(Restaurant).filter(Restaurant.plivo_number == plivo_number).first()
+    if not rest:
+        # Tenant resolution by called number — match on last 10 digits (Plivo sends
+        # `To` without a '+', we store it with one). Do NOT silently fall back to the
+        # first restaurant for a real number — that serves the wrong store's menu.
+        target = _digits10(plivo_number)
+        if target:
+            for r in db.query(Restaurant).filter(Restaurant.plivo_number.isnot(None)).all():
+                if _digits10(r.plivo_number) == target:
+                    rest = r
+                    break
     if not rest:
         rest = db.query(Restaurant).first()
     if not rest:
@@ -406,12 +424,25 @@ def _process_sms_background(body: str, caller: str, to_num: str):
         # Hotel quick intents (legacy concierge feature)
         hotel_reply = _hotel_intent(body)
 
-        if vip_reply:
+        # Operator-taught skills (self-learning) — deterministic, before the LLM.
+        from app.services import skills as skills_svc
+        # Mid-collection follow-up (e.g. raffle name+email) takes top priority.
+        pending = skills_svc.pending_reply(body, restaurant_id=rid, session_id=sms_sess, caller=caller, channel="sms")
+        skill_reply = None if (pending or vip_reply or hotel_reply) else skills_svc.match(
+            body, restaurant_id=rid, session_id=sms_sess, caller=caller, channel="sms")
+
+        if pending:
+            reply, claude_ms, noise, checkout_url = pending, 0.0, False, None
+            print(f"[sms] raffle collect: {repr(body[:40])}")
+        elif vip_reply:
             reply, claude_ms, noise, checkout_url = vip_reply, 0.0, False, None
             print(f"[sms] vip intent: {repr(body[:40])}")
         elif hotel_reply:
             reply, claude_ms, noise, checkout_url = hotel_reply, 0.0, False, None
             print(f"[sms] hotel intent: {repr(body[:40])}")
+        elif skill_reply:
+            reply, claude_ms, noise, checkout_url = skill_reply, 0.0, False, None
+            print(f"[sms] skill intent: {repr(body[:40])}")
         elif not menu_text:
             reply, claude_ms, noise, checkout_url = "Menu not available yet.", 0.0, False, None
         else:
@@ -467,6 +498,7 @@ def _process_sms_background(body: str, caller: str, to_num: str):
             restaurant_id     = rest.id if rest else None,
             call_type         = "sms",
             caller_number     = caller,
+            session_id        = sms_sess,
             transcript        = body,
             recommendation    = reply,
             claude_latency_ms = claude_ms,

@@ -53,6 +53,28 @@ a demo to PayPal.
 `vip_subscribers.last_redeemed_at`). All added via `ALTER TABLE` on the VM
 (SQLAlchemy `create_all` does NOT alter existing tables).
 
+### Observability & operator annotation (Jun 2026)
+**Every channel now logs every turn.** Previously only phone-voice and SMS wrote
+to `call_logs`; **browser voice (`voice_web`) and browser Text (`text_chat`) wrote
+nothing.** Both now persist via a shared helper `app/services/convo_log.log_turn()`.
+All four channels also write `session_id` so turns group into conversations.
+
+**Operator console (Agent Studio → "Conversations" tab).** New `app/routers/operator.py`:
+- `GET  /api/conversations?limit=N` — recent turns, full text, all channels.
+- `POST /api/conversations/{id}/annotate` `{reply?, note?}` — a human can correct
+  the AI reply and/or leave a comment (the **✏️ pencil** on each turn). Edits land
+  in `call_logs.operator_reply` / `operator_note` and **never overwrite** the
+  original `recommendation`; `reviewed_at` is stamped.
+
+**New `call_logs` columns** (auto-migrated on startup by `_ensure_call_log_columns()`
+in `database.py` — it `ALTER`s the existing table, idempotent): `session_id`,
+`operator_reply`, `operator_note`, `reviewed_at`; `call_type` widened to VARCHAR(16)
+for `web_voice`. So a plain `systemctl restart recsys` applies the migration — no
+manual SQL needed this time.
+
+**Verify SMS:** `python3 scripts/verify_sms.py` (config + Plivo auth check, sends
+nothing); add `--to +1XXXXXXXXXX --send` for a live test message.
+
 ---
 
 - Live phone: **+1 (646) 440-8480**
@@ -548,6 +570,34 @@ md5 -q FILE   # local (macOS)
 ssh ... "md5sum FILE"   # VM (linux)
 ```
 As of this handoff all 12 modified files match byte-for-byte on both sides.
+
+---
+
+## Running a second deployment (e.g. `aie26`) beside recsys
+
+The app is now **location- and path-independent**: it reads its directory from
+`APP_HOME` (defaults to the parent of `app/`) and its URL prefix from `BASE_PATH`
+/ `PUBLIC_BASE_URL`. So a second instance is just the same code in another folder
+with a different `.env`, port, systemd unit, Apache path, and database — no code
+edits. (This removed the old hardcoded `~/work/recsys` paths via `app/paths.py`.)
+
+**One-shot create/refresh** (run on the VM):
+```bash
+bash /home/azureuser/work/recsys/deploy/deploy_aie26.sh
+```
+That script (idempotent, no secrets in it — reads recsys/.env) does:
+`/home/azureuser/work/aie26` (rsync of recsys) · venv + deps · `.env` with
+`BASE_PATH=/aie26`, `PUBLIC_BASE_URL=…/aie26`, `DB_URL=…/aie26`, `APP_HOME=…/aie26`
+· create `aie26` MySQL schema (tables auto-create on first boot) · seed menu ·
+`systemd aie26` on **port 5001** · Apache `conf-available/aie26.conf` (`/aie26/`
++ `/aie26/ws/voice`) · reload Apache · health check.
+
+Artifacts live in `deploy/`: `aie26.service`, `aie26.conf`, `deploy_aie26.sh`.
+Live URL after deploy: `https://support.hostbuddy.io/aie26/agentstudio`.
+Manage: `sudo systemctl restart aie26` · `sudo journalctl -u aie26 -f`.
+
+> aie26 uses a **separate `aie26` database** so its data never touches the live
+> recsys demo. Point both at the same DB only if you explicitly want shared data.
 
 ---
 

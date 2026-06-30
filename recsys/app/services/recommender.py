@@ -156,24 +156,6 @@ _TOOLS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "provide_phone",
-            "description": (
-                "Save the guest's mobile number so the checkout link + receipt can be TEXTED "
-                "to them. Call this when the guest gives a phone number (e.g. 'text it to "
-                "five five five, one two three, four five six seven')."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "phone": {"type": "string", "description": "The guest's phone number, digits as heard"}
-                },
-                "required": ["phone"],
-            },
-        },
-    },
 ]
 
 
@@ -300,29 +282,15 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
         return menu_cache.get_modifier_options(restaurant_id, menu_text, args.get("item_name", "")), None
 
     if fn == "add_to_cart":
-        req_name = (args.get("item_name") or "").strip()
-        # ── Java findItem parity: never add an item that isn't on the menu ──
-        # A misheard transcript ("Miller Light" → garble) was being added as a
-        # fabricated line ("Alaska Middle Of Light $17.99"). Validate first; if
-        # the restaurant has a structured menu and nothing matches, refuse and
-        # ask the guest to repeat. When matched, add the CANONICAL item (real
-        # name + price + photo), not the raw transcript.
-        matched = menu_cache.match_item(restaurant_id, req_name)
-        if matched is None and menu_cache.has_structured_menu(restaurant_id):
-            return (f"Hmm, I couldn't find \"{req_name}\" on our menu — "
-                    f"could you say that again?"), None
-
-        item_name   = (menu_cache.base_name(matched) or req_name) if matched else req_name
-        item_image  = (matched.image_url if matched else "") or menu_cache.image_for(restaurant_id, req_name)
-        price = (matched.price_cents or 0) / 100.0 if matched else 0.0
-        # Fallback price for menus without structured prices (raw_text / items_json).
+        # Price source 1: raw_text via menu_cache (pipe-delimited menus)
+        detail = menu_cache.get_item_details(restaurant_id, menu_text, args["item_name"])
+        price = 0.0
+        m = re.search(r'\$(\d+(?:\.\d{1,2})?)', detail)
+        if m:
+            price = float(m.group(1))
+        # Price source 2: items_json (PDFs lacking $ in raw_text — e.g. Denny's)
         if price == 0.0:
-            detail = menu_cache.get_item_details(restaurant_id, menu_text, req_name)
-            m = re.search(r'\$(\d+(?:\.\d{1,2})?)', detail)
-            if m:
-                price = float(m.group(1))
-        if price == 0.0:
-            price = _lookup_price(restaurant_id, req_name)
+            price = _lookup_price(restaurant_id, args["item_name"])
 
         # Safety net: GPT sometimes echoes negated words as positive modifiers
         # ("no bacon" → modifiers=["bacon"]). Pull out anything that looks like
@@ -344,32 +312,17 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
                 cleaned.append(norm)
 
         add_msg = cart.add(
-            name=item_name,
+            name=args["item_name"],
             qty=args.get("quantity", 1),
             price=price,
             modifiers=cleaned,
             size=args.get("size", ""),
             special_instructions=special,
-            image_url=item_image,
+            image_url=menu_cache.image_for(restaurant_id, args["item_name"]),
         )
         # Java pattern: return cart summary so GPT sees what's actually in the cart
         # after the add — prevents duplicate items and helps with state tracking.
         return f"{add_msg} Current cart: {cart.summary()}", None
-
-    if fn == "provide_phone":
-        digits = "".join(c for c in (args.get("phone") or "") if c.isdigit())
-        if len(digits) < 10:
-            return "I didn't catch a full number — what's your 10-digit mobile?", None
-        cart.caller_phone = digits
-        last4 = digits[-4:]
-        # If we asked for this number specifically to finalize the order (the
-        # complete_order phone gate set phone_prompted), finish RIGHT NOW so the
-        # SMS fires deterministically — don't depend on GPT to re-call the tool.
-        if cart.phone_prompted and cart.items:
-            print(f"[provide_phone] phone {last4} captured at checkout — auto-completing order")
-            return _dispatch("complete_order", {}, restaurant_id, menu_text, session_id, db)
-        return (f"Great — I'll text your receipt and checkout link to the number ending {last4} "
-                f"when you're done."), None
 
     if fn == "remove_from_cart":
         return cart.remove(args.get("item_name", "")), None
@@ -414,12 +367,6 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
                 cart.current_item_name = it.name
                 return (f"Before I place that — your {it.name} needs a {g['name'].lower()}. "
                         f"Would you like {opts}?"), None
-
-        # NOTE: kiosk/web orders do NOT ask for a phone number. A real kiosk
-        # has a payment terminal and reading a number aloud is awkward; the
-        # checkout page + on-screen Pay button is the flow there. The phone
-        # channel (voice_ws sets cart.caller_phone) and SMS sessions still get
-        # the link texted automatically because their number is already known.
 
         # ── VIP per-visit benefits (honest + condition-aware) ────────────────
         # Active subscribers get: (1) their recurring free perk, and (2) a visit
@@ -516,11 +463,6 @@ def _dispatch(fn: str, args: dict, restaurant_id: int, menu_text: str,
             except Exception as e:
                 print(f"[cart] sms send failed: {e}")
 
-        # Snapshot the final total + line items BEFORE clearing, so the SMS
-        # reply / browser receipt can show them after the cart is emptied
-        # (otherwise they read an already-cleared cart → "$0.00").
-        cart.last_order_total = total
-        cart.last_order_items = order_items
         cart.clear()
         spoken_amount = f"{int(total)} dollars" if total == int(total) else f"{total:.2f} dollars"
         vip_note = (f" Your VIP {int(vip_discount_pct)}% {vip_cond} discount saved you ${vip_discount_amt:.2f}."
@@ -688,9 +630,8 @@ def get_recommendation(
         + "- A PHOTO of the item is shown to the guest, so be VIVID & APPETIZING: add one short sensory detail to entice (e.g. 'a velvety oat-milk latte', 'a juicy char-grilled burger', 'crisp golden fries'). Keep it within the word limit.\n"
         + "- DO NOT read the raw description verbatim (e.g. don't say 'featuring double patty, cheese and bacon').\n"
         + "- Instead, frame around what's CONFIGURABLE. Use the 'Customizable:' line from get_item_details.\n"
-        + "- NEVER invent inclusions or add-ons. ONLY mention sides/options/'comes with' that actually appear in get_item_details ('Customizable:'/'Available options') or the CART STATE config block for THAT item. If an item has no option groups, do NOT claim it comes with anything (e.g. a pizza with no Sides group does NOT 'come with fries').\n"
-        + "- Example (item WITH options): 'The Slam Burger is $10.50 — comes with a choice of sides and protein. Would you like one?'\n"
-        + "- After adding an item that HAS option groups, proactively offer ONE real group from its options. If it has NO option groups, just confirm and ask 'Anything else?'\n"
+        + "- Example: 'The Slam Burger is $10.50 — comes with sides and a choice of protein. Would you like one?'\n"
+        + "- After adding the main item: PROACTIVELY mention sides. Example: 'Got it. It comes with sides — would you like fries, onion rings, or sweet potato fries?'\n"
         + "- After they pick a side, confirm + ask 'anything else?'\n"
         + "TOOLS — prefer ONE tool per turn for speed, but you MAY call add_to_cart right after a lookup in the SAME turn.\n"
         + "ORDER INTENT (critical): when the guest NAMES an item to order ('I'll take a slam burger', 'I want…', 'give me…', 'add…'), you MUST call add_to_cart THIS turn. Saying 'Got it' WITHOUT calling add_to_cart loses the order — never do that.\n"
@@ -701,8 +642,6 @@ def get_recommendation(
         + "- get_modifier_options — only when the guest explicitly asks what the choices are.\n"
         + "- get_cart / complete_order / cancel_order — order management.\n"
         + "- subscribe_vip — call when the guest mentions VIP, membership, loyalty, or member perks. It returns the plan and a signup link; just read it back.\n"
-        + "- provide_phone — ONLY if the guest unprompted gives a phone number; otherwise never bring up phone/text.\n"
-        + "DO NOT ask for a phone number. This is a kiosk — when the guest is done, call complete_order and the payment options appear on screen.\n"
         + "MODIFIERS:\n"
         + "- `modifiers` is ONLY for additions or substitutions IN (e.g. 'Extra Cheese', 'Bacon').\n"
         + "- For 'no X' / 'without X' / 'hold the X' → use `special_instructions: \"no X\"`.\n"
@@ -830,14 +769,8 @@ def get_recommendation(
         try:
             _cart_for_out = cart_svc.get(session_id)
             if _cart_for_out:
-                # complete_order clears the cart, so a just-placed order reads the
-                # snapshot it stashed; otherwise use the live cart (mid-order).
-                if not _cart_for_out.items and _cart_for_out.last_order_items:
-                    out["total"]      = f"{_cart_for_out.last_order_total:.2f}"
-                    out["cart_items"] = _cart_for_out.last_order_items
-                else:
-                    out["total"]      = f"{_cart_for_out.total():.2f}"
-                    out["cart_items"] = _cart_for_out.to_dict()["items"]
+                out["total"]      = f"{_cart_for_out.total():.2f}"
+                out["cart_items"] = _cart_for_out.to_dict()["items"]
         except Exception:
             pass
 
